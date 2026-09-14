@@ -1,0 +1,2049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ridgeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="description" content="Offline-first trail companion for Canada &amp; the US — real trail data, GPS recording, and a saved library that works with the signal off.">
+<meta name="theme-color" content="#0f1018">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-32.png" sizes="32x32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ridgeline">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+.leaflet-container{background:#191b28;font-family:'Inter',system-ui,sans-serif}
+.leaflet-popup-content-wrapper{background:#20222f;color:#eeeef2;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.leaflet-popup-content{font-size:13px;line-height:1.5;margin:10px 12px}
+.leaflet-popup-content a{color:#c0b6fb}
+.leaflet-popup-tip{background:#20222f}
+.leaflet-control-zoom a{background:#20222f!important;color:#eeeef2!important;border-color:#383b48!important}
+.leaflet-control-zoom a:hover{background:#282a38!important}
+.leaflet-control-attribution{background:rgba(11,12,20,.75)!important;color:#6d7186!important;font-size:9px!important;padding:2px 6px!important}
+.leaflet-control-attribution a{color:#9397ab!important}
+</style>
+<style>
+:root{
+  --bg:#0b0c14;
+  --surface:#14151f;
+  --surface-2:#191b28;
+  --card:#20222f;
+  --card-2:#282a38;
+  --border:#383b48;
+  --border-soft:#2b2d3a;
+  --text:#eeeef2;
+  --text-2:#c7cadb;
+  --text-3:#9397ab;
+  --text-4:#6d7186;
+  --accent:#9a8ce0;
+  --accent-2:#c0b6fb;
+  --accent-fill:#453d78;
+  --accent-tint:rgba(154,140,224,.14);
+  --good:#7fcf9f;
+  --good-tint:rgba(127,207,159,.14);
+  --warn:#e0b568;
+  --warn-tint:rgba(224,181,104,.14);
+  --danger:#e28a78;
+  --danger-tint:rgba(226,138,120,.14);
+  --font-ui:'Inter',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+  --tabbar-h:58px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{
+  margin:0;color:var(--text);font-family:var(--font-ui);
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:none;
+}
+h1,h2,h3,h4{margin:0;text-wrap:balance;font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;-webkit-user-select:none;user-select:none}
+input,textarea,select{font-family:inherit;color:inherit}
+a{color:var(--accent-2)}
+::selection{background:var(--accent-fill);color:#fff}
+::-webkit-scrollbar{display:none}
+*{scrollbar-width:none}
+
+.shell{
+  max-width:520px;margin:0 auto;min-height:100vh;position:relative;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+}
+.appbar{
+  position:sticky;top:0;z-index:30;
+  padding:calc(var(--safe-t) + 14px) 18px 12px;
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(var(--bg) 60%, transparent);
+}
+.appbar.solid{background:var(--bg);border-bottom:1px solid var(--border-soft)}
+.appbar h1{font-size:20px}
+.iconbtn{
+  width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  background:var(--card);color:var(--text-2);flex:none;
+}
+.iconbtn:active{background:var(--card-2)}
+.iconbtn.ghost{background:transparent}
+.screen{
+  flex:1;padding-bottom:calc(var(--tabbar-h) + var(--safe-b) + 24px);
+  animation:rise .22s cubic-bezier(.2,.7,.3,1);
+}
+.screen.no-tab{padding-bottom:calc(var(--safe-b) + 24px)}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){.screen{animation:none}}
+
+.tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  max-width:520px;margin:0 auto;
+  display:flex;padding:8px calc(4px + var(--safe-l)) calc(6px + var(--safe-b)) calc(4px + var(--safe-r));
+  background:rgba(20,21,31,.92);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);
+  border-top:1px solid var(--border-soft);
+}
+.tabbar .tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px 2px;
+  color:var(--text-4);
+}
+.tabbar .tab.active{color:var(--accent-2)}
+.tabbar .tab span{font-size:10.5px;font-weight:600;letter-spacing:.01em}
+.tabbar .tab .dot{width:4px;height:4px;border-radius:50%;background:var(--accent-2);position:absolute;margin-top:-1px}
+
+.px{padding-left:18px;padding-right:18px}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2)}
+.muted{color:var(--text-3)}
+.sub{color:var(--text-3);font-size:13px;line-height:1.5}
+
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}.gap14{gap:14px}
+
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:20px;
+  font-size:12.5px;font-weight:500;background:var(--card);box-shadow:inset 0 0 0 1px var(--border);color:var(--text-2);
+  white-space:nowrap;flex:none;
+}
+.chip.on{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent);color:#fff}
+.chip svg{width:14px;height:14px}
+
+.tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:6px;font-size:10.5px;font-weight:700;letter-spacing:.01em}
+.tag-easy{background:var(--good-tint);color:var(--good)}
+.tag-moderate{background:var(--accent-tint);color:var(--accent-2)}
+.tag-hard{background:var(--warn-tint);color:var(--warn)}
+.tag-strenuous{background:var(--danger-tint);color:var(--danger)}
+
+.card{background:var(--card);border-radius:14px;box-shadow:inset 0 0 0 1px var(--border-soft)}
+.card-pad{padding:14px}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:44px;padding:0 18px;border-radius:12px;font-size:14.5px;font-weight:600;
+}
+.btn-block{width:100%}
+.btn-primary{background:var(--accent-2);color:#191330}
+.btn-primary:active{background:#a99df0}
+.btn-secondary{background:var(--card-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--border)}
+.btn-ghost{color:var(--accent-2)}
+.btn-danger{color:var(--danger)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+
+.toggle{width:44px;height:26px;border-radius:14px;flex:none;position:relative;background:var(--card-2);box-shadow:inset 0 0 0 1px var(--border)}
+.toggle .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--text-3);transition:transform .16s ease,background .16s}
+.toggle.on{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent)}
+.toggle.on .knob{transform:translateX(18px);background:var(--accent-2)}
+
+.avatarph{
+  border-radius:9px;background:
+    repeating-linear-gradient(135deg,var(--card-2) 0 7px,var(--card) 7px 14px);
+  display:flex;align-items:center;justify-content:center;position:relative;flex:none;color:var(--text-4);
+}
+.avatarph span{font:10px var(--font-mono);letter-spacing:.02em}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;
+}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:3px;background:var(--card-2)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--text);
+  box-shadow:0 2px 6px rgba(0,0,0,.5);margin-top:-8px;
+}
+input[type=range]::-moz-range-track{height:4px;border-radius:3px;background:var(--card-2)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--text);border:none}
+
+.sheet-wrap{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.sheet-backdrop{position:absolute;inset:0;background:rgba(6,6,10,.62);animation:fadein .18s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.sheet{
+  position:relative;width:100%;max-width:520px;max-height:88vh;overflow:auto;
+  background:var(--surface-2);border-radius:20px 20px 0 0;box-shadow:0 -14px 40px rgba(0,0,0,.6);
+  padding:10px 18px calc(22px + var(--safe-b));animation:sheetup .2s cubic-bezier(.2,.7,.3,1);
+}
+@keyframes sheetup{from{transform:translateY(24px);opacity:.6}to{transform:translateY(0);opacity:1}}
+.sheet-handle{width:38px;height:4px;border-radius:3px;background:var(--border);margin:2px auto 14px}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(var(--tabbar-h) + var(--safe-b) + 14px);transform:translateX(-50%);
+  background:var(--card-2);color:var(--text);box-shadow:0 0 0 1px var(--border),0 10px 30px rgba(0,0,0,.5);
+  padding:11px 18px;border-radius:12px;font-size:13px;font-weight:500;z-index:80;
+  display:flex;align-items:center;gap:8px;max-width:88%;animation:toastin .18s ease;
+}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+.stat-tile{flex:1;text-align:center;padding:13px 4px}
+.stat-tile .v{font:700 17px var(--font-mono);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.stat-tile .l{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-4);margin-top:3px}
+.divider-v{width:1px;background:var(--border-soft)}
+.divider-h{height:1px;background:var(--border-soft)}
+
+.trailcard{display:flex;gap:12px;padding:12px;background:var(--card);border-radius:14px;box-shadow:inset 0 0 0 1px var(--border-soft)}
+.trailcard .thumb{width:78px;height:78px;border-radius:10px}
+.trailcard .name{font-size:14.5px;font-weight:600;line-height:1.3}
+.trailcard .meta{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.trailcard .stats{display:flex;gap:9px;margin-top:6px;font:12px var(--font-mono);color:var(--text-2)}
+
+.field-label{font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:7px;display:block}
+.textinput{
+  width:100%;background:var(--card);box-shadow:inset 0 0 0 1px var(--border);border-radius:11px;
+  padding:12px 13px;font-size:14px;color:var(--text);
+}
+.textinput::placeholder{color:var(--text-4)}
+textarea.textinput{resize:vertical;min-height:76px;font-family:var(--font-ui)}
+
+.progress-track{height:6px;border-radius:3px;background:var(--card-2);overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;background:var(--accent-2)}
+
+.map-abstract{position:relative;overflow:hidden;background:
+  radial-gradient(circle at 32% 30%,rgba(154,140,224,.16),transparent 58%),
+  repeating-radial-gradient(circle at 30% 40%,transparent 0 12px,rgba(238,238,242,.045) 12px 13px),
+  repeating-radial-gradient(circle at 76% 74%,transparent 0 16px,rgba(238,238,242,.035) 16px 17px),
+  #171928;}
+@keyframes pulse{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+.livedot{width:14px;height:14px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 7px rgba(192,182,251,.18);animation:pulse 2.4s infinite}
+
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:50px 30px;color:var(--text-3)}
+.empty svg{width:34px;height:34px;color:var(--text-4)}
+.linkout{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--accent-2);font-weight:500}
+
+@media (min-width:521px){
+  body{background:var(--bg)}
+  .shell{box-shadow:0 0 0 1px var(--border-soft)}
+}
+</style>
+</head>
+<body>
+<div id="root" class="shell"></div>
+
+<script>
+/* ---------------------------------------------------------------- icons */
+const ICON_PATHS = {
+  mountain:'<path d="M3 20L9.5 7l3.2 5.5L15.5 9 21 20H3z"/>',
+  mountainFill:'<path d="M3 20L9.5 7l3.2 5.5L15.5 9 21 20H3z" fill="currentColor" stroke="none"/>',
+  search:'<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/>',
+  map:'<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  mapFill:'<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" fill="currentColor" stroke="none"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><polygon points="15 9 13 13 9 15 11 11 15 9"/>',
+  crosshair:'<circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>',
+  cloudOff:'<path d="M6.8 17.2A4.3 4.3 0 0 1 7.3 8.7a6 6 0 0 1 11.6 1.6"/><line x1="3" y1="3" x2="21" y2="21"/>',
+  cloud:'<path d="M6.8 17.2A4.3 4.3 0 0 1 7.3 8.7a6 6 0 0 1 11.6 1.6 3.6 3.6 0 0 1-.5 6.9H6.8z"/>',
+  download:'<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><line x1="4" y1="21" x2="20" y2="21"/>',
+  bookmark:'<path d="M6 3h12v18l-6-4-6 4V3z"/>',
+  bookmarkFill:'<path d="M6 3h12v18l-6-4-6 4V3z" fill="currentColor" stroke="none"/>',
+  star:'<path d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3-4.8-4.3 6.4-.6L12 3z"/>',
+  starFill:'<path d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3-4.8-4.3 6.4-.6L12 3z" fill="currentColor" stroke="none"/>',
+  chevronLeft:'<polyline points="15 18 9 12 15 6"/>',
+  chevronRight:'<polyline points="9 18 15 12 9 6"/>',
+  chevronDown:'<polyline points="6 9 12 15 18 9"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  sliders:'<line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="var(--bg,#0b0c14)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="var(--bg,#0b0c14)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="var(--bg,#0b0c14)"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  checkCircle:'<circle cx="12" cy="12" r="9"/><polyline points="8 12.5 10.8 15 16 9"/>',
+  checkCircleFill:'<circle cx="12" cy="12" r="9" fill="currentColor" stroke="none"/><polyline points="8 12.5 10.8 15 16 9" stroke="var(--card,#20222f)"/>',
+  circle:'<circle cx="12" cy="12" r="9"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none"/>',
+  pause:'<rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none"/>',
+  stop:'<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
+  mapPin:'<path d="M12 22s7-7.9 7-12.5A7 7 0 0 0 5 9.5C5 14.1 12 22 12 22z"/><circle cx="12" cy="9.3" r="2.4"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>',
+  trendUp:'<polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4.4 3.4-7 7.5-7s7.5 2.6 7.5 7"/>',
+  wifi:'<path d="M4.5 12.8a11 11 0 0 1 15 0"/><path d="M7.8 16.2a6 6 0 0 1 8.4 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none"/>',
+  trash:'<line x1="4" y1="7" x2="20" y2="7"/><path d="M6.5 7l1 14h9l1-14"/><path d="M9.5 7V4.5h5V7"/>',
+  share:'<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><line x1="8.3" y1="10.6" x2="15.6" y2="6.6"/><line x1="8.3" y1="13.4" x2="15.6" y2="17.4"/>',
+  warning:'<path d="M12 3.5L21.5 20H2.5L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14.5"/><circle cx="12" cy="17.3" r="1" fill="currentColor" stroke="none"/>',
+  camera:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7l1.6-2.5h3.8L15.5 7"/><circle cx="12" cy="13.5" r="3.4"/>',
+  dot:'<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/>',
+  flag:'<line x1="6" y1="3" x2="6" y2="21"/><path d="M6 4.5h12l-3 4 3 4H6"/>',
+  moon:'<path d="M20 14.3A8.4 8.4 0 1 1 9.7 4a7 7 0 0 0 10.3 10.3z"/>',
+  more:'<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  route:'<circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="5" r="2.2"/><path d="M6.8 17.5C11 13 8 9 12 7s4 3.5 5.5 1.8" stroke-dasharray="1 4.2"/>',
+  info:'<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"/>',
+  layers:'<polygon points="12 3 3 8 12 13 21 8 12 3"/><polyline points="3 15 12 20 21 15"/><polyline points="3 11.5 12 16.5 21 11.5"/>',
+  gauge:'<circle cx="12" cy="13" r="8"/><line x1="12" y1="13" x2="15.5" y2="9"/><line x1="7" y1="6" x2="8.3" y2="7.3"/><line x1="17" y1="6" x2="15.7" y2="7.3"/>',
+};
+function icon(name, size){
+  size = size||20;
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICON_PATHS[name]||'')+'</svg>';
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ---------------------------------------------------------------- data */
+const REGIONS = [
+  {id:'banff', name:'Banff & Lake Louise', sub:'Parks Canada · Alberta', country:'Canada', lat:51.4254, lon:-116.1773, baseElevM:1730},
+  {id:'jasper', name:'Jasper', sub:'Parks Canada · Alberta', country:'Canada', lat:52.8734, lon:-118.0814, baseElevM:1050},
+  {id:'yoho', name:'Yoho', sub:'Parks Canada · British Columbia', country:'Canada', lat:51.4400, lon:-116.4400, baseElevM:1350},
+  {id:'northshore', name:'Sea-to-Sky & North Shore', sub:'Metro Vancouver + BC Parks', country:'Canada', lat:49.3806, lon:-123.0827, baseElevM:60},
+  {id:'whistler', name:'Whistler & Garibaldi', sub:'BC Parks · British Columbia', country:'Canada', lat:50.1163, lon:-122.9574, baseElevM:650},
+  {id:'pacificrim', name:'Pacific Rim & Tofino', sub:'Parks Canada · Vancouver Island', country:'Canada', lat:49.1153, lon:-125.8306, baseElevM:10},
+  {id:'algonquin', name:'Algonquin', sub:'Ontario Parks', country:'Canada', lat:45.5000, lon:-78.4000, baseElevM:450},
+  {id:'brucepeninsula', name:'Bruce Peninsula', sub:'Parks Canada · Ontario', country:'Canada', lat:45.2168, lon:-81.5387, baseElevM:180},
+  {id:'monttremblant', name:'Mont-Tremblant', sub:'Sépaq · Québec', country:'Canada', lat:46.2119, lon:-74.5964, baseElevM:250},
+  {id:'zion', name:'Zion & Bryce', sub:'US National Park Service · Utah', country:'United States', lat:37.2982, lon:-113.0263, baseElevM:1230},
+  {id:'grandcanyon', name:'Grand Canyon', sub:'US National Park Service · Arizona', country:'United States', lat:36.0544, lon:-112.1401, baseElevM:2070},
+  {id:'arches', name:'Arches & Canyonlands', sub:'US National Park Service · Utah', country:'United States', lat:38.7331, lon:-109.5925, baseElevM:1240},
+  {id:'yosemite', name:'Yosemite', sub:'US National Park Service · California', country:'United States', lat:37.8651, lon:-119.5383, baseElevM:1210},
+  {id:'sequoia', name:'Sequoia & Kings Canyon', sub:'US National Park Service · California', country:'United States', lat:36.4864, lon:-118.5658, baseElevM:1930},
+  {id:'joshuatree', name:'Joshua Tree', sub:'US National Park Service · California', country:'United States', lat:33.8734, lon:-115.9010, baseElevM:1300},
+  {id:'yellowstone', name:'Yellowstone', sub:'US National Park Service · Wyoming', country:'United States', lat:44.4280, lon:-110.5885, baseElevM:2240},
+  {id:'grandteton', name:'Grand Teton', sub:'US National Park Service · Wyoming', country:'United States', lat:43.7904, lon:-110.6818, baseElevM:2070},
+  {id:'rockymountain', name:'Rocky Mountain', sub:'US National Park Service · Colorado', country:'United States', lat:40.3428, lon:-105.6836, baseElevM:2740},
+  {id:'glacier', name:'Glacier', sub:'US National Park Service · Montana', country:'United States', lat:48.7596, lon:-113.7870, baseElevM:1000},
+  {id:'rainier', name:'Mount Rainier', sub:'US National Park Service · Washington', country:'United States', lat:46.8523, lon:-121.7603, baseElevM:1650},
+  {id:'olympic', name:'Olympic', sub:'US National Park Service · Washington', country:'United States', lat:47.8021, lon:-123.6044, baseElevM:520},
+  {id:'smokies', name:'Great Smoky Mountains', sub:'US National Park Service · Tennessee', country:'United States', lat:35.6118, lon:-83.4895, baseElevM:640},
+  {id:'acadia', name:'Acadia', sub:'US National Park Service · Maine', country:'United States', lat:44.3386, lon:-68.2733, baseElevM:20},
+  {id:'whitemountains', name:'White Mountains', sub:'US National Forest · New Hampshire', country:'United States', lat:44.2706, lon:-71.3033, baseElevM:600},
+  {id:'shenandoah', name:'Shenandoah', sub:'US National Park Service · Virginia', country:'United States', lat:38.2928, lon:-78.6795, baseElevM:850},
+  {id:'adirondacks', name:'Adirondacks', sub:'NY State Forest Preserve', country:'United States', lat:44.1300, lon:-73.9820, baseElevM:650},
+  {id:'bigbend', name:'Big Bend', sub:'US National Park Service · Texas', country:'United States', lat:29.1275, lon:-103.2425, baseElevM:1130},
+];
+function regionOf(id){return REGIONS.find(r=>r.id===id);}
+
+/* ---------------------------------------------------------------- real map tiles (OpenStreetMap, via Leaflet) */
+function lon2tileX(lon,z){ return Math.floor((lon+180)/360*Math.pow(2,z)); }
+function lat2tileY(lat,z){ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z)); }
+function regionTileUrls(region, full){
+  const box = full? 0.22 : 0.12;
+  const zooms = full? [10,11,12,13,14] : [10,11,12,13];
+  const urls=[];
+  zooms.forEach(z=>{
+    const x0=lon2tileX(region.lon-box,z), x1=lon2tileX(region.lon+box,z);
+    const y0=lat2tileY(region.lat+box,z), y1=lat2tileY(region.lat-box,z);
+    for(let x=x0;x<=x1;x++) for(let y=y0;y<=y1;y++) urls.push('https://tile.openstreetmap.org/'+z+'/'+x+'/'+y+'.png');
+  });
+  return urls;
+}
+
+// Real trail facts sourced from AllTrails (via the AllTrails connector), Sep 2026.
+// distances/gains rounded from precise meter values; duration is the AllTrails
+// average where available, otherwise an estimate flagged with `estDuration:true`.
+const TRAILS = [
+{id:'plain-six-glaciers',name:'Plain of Six Glaciers',region:'banff',park:'Banff National Park, AB',near:'Lake Louise',
+ lengthKm:14.2,gainM:587,highM:2205,difficulty:'Moderate',routeType:'Out & back',durationMin:273,
+ rating:4.8,reviews:5835,activities:['hiking','snowshoeing','trail-running','birding','horseback-riding'],
+ features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife','historic-site'],
+ blurb:'Flat along the Lake Louise shoreline for the first third, then climbs steadily to a viewpoint under Mount Victoria and the Victoria Glacier. A seasonal teahouse sits near the top — cash only.',
+ endLabel:'Six Glaciers viewpoint', source:{id:10035553,url:'https://www.alltrails.com/trail/canada/alberta/plain-of-six-glaciers-trail'}},
+{id:'lake-agnes',name:'Lake Agnes Trail',region:'banff',park:'Banff National Park, AB',near:'Lake Louise',
+ lengthKm:7.9,gainM:496,highM:2140,difficulty:'Moderate',routeType:'Out & back',durationMin:187,
+ rating:4.7,activities:['birding','hiking','trail-running'],
+ features:['dogs-leash','forest','lake','kids','river','views','waterfall','wild-flowers','wildlife','historic-site'],
+ blurb:'A steady switchback climb through subalpine forest to a glacial lake and its historic teahouse, with Big Beehive rising behind it.',
+ endLabel:'Lake Agnes teahouse'},
+{id:'little-beehive',name:'Little Beehive via Lake Agnes Trail',region:'banff',park:'Banff National Park, AB',near:'Lake Louise',
+ lengthKm:8.9,gainM:584,highM:2270,difficulty:'Hard',routeType:'Out & back',durationMin:216,
+ rating:4.8,activities:['birding','hiking','snowshoeing','trail-running'],
+ features:['dogs-leash','forest','lake','views','waterfall','wild-flowers','wildlife'],
+ blurb:'Continues past Lake Agnes up to a small lookout tower with a wraparound view over the Bow Valley and Lake Louise below.',
+ endLabel:'Little Beehive lookout'},
+{id:'lake-louise-lakeshore',name:'Lake Louise Lakeshore',region:'banff',park:'Banff National Park, AB',near:'Lake Louise',
+ lengthKm:4.7,gainM:106,highM:1840,difficulty:'Easy',routeType:'Out & back',durationMin:71,
+ rating:4.7,activities:['birding','snowshoeing','walking','running'],
+ features:['dogs-leash','forest','lake','kids','river','views','waterfall','wild-flowers','wildlife','historic-site'],
+ blurb:'A flat, wide path along the turquoise shore of Lake Louise toward the toe of the Victoria Glacier — the easiest big view in the park.',
+ endLabel:'Fairview lakeshore'},
+{id:'fairview-lookout',name:'Fairview Lookout',region:'banff',park:'Banff National Park, AB',near:'Lake Louise',
+ lengthKm:2.4,gainM:160,highM:1900,difficulty:'Moderate',routeType:'Out & back',durationMin:59,
+ rating:4.7,activities:['birding','hiking','trail-running'],
+ features:['dogs-leash','forest','lake','kids','river','views','wildlife','historic-site'],
+ blurb:'A short, sharp climb through spruce forest to a bench with a quiet, mostly-to-yourself view over Lake Louise.',
+ endLabel:'Fairview lookout bench'},
+{id:'big-beehive',name:'The Big Beehive',region:'banff',park:'Banff National Park, AB',near:'Lake Louise',
+ lengthKm:10.9,gainM:731,highM:2270,difficulty:'Hard',routeType:'Out & back',durationMin:269,
+ rating:4.9,activities:['birding','hiking','snowshoeing','trail-running'],
+ features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'The high point of the Lake Agnes circuit — a wooden gazebo perched above Lake Louise and Mirror Lake with the best panorama in the valley.',
+ endLabel:'Big Beehive gazebo'},
+
+{id:'grouse-grind',name:'Grouse Grind Trail',region:'northshore',park:'Grouse Mountain Regional Park, BC',near:'North Vancouver',
+ lengthKm:2.1,gainM:780,highM:1090,difficulty:'Hard',routeType:'Point to point',durationMin:90,estDuration:true,
+ rating:4.7,reviews:12959,activities:['hiking','trail-running'],
+ features:['forest','views','wildlife','dogs-no','historic-site'],
+ blurb:'Vancouver\'s "Mother Nature\'s Stairmaster" — 2,830 steps straight up the face of Grouse Mountain. One-way only; ride the gondola down.',
+ endLabel:'Grouse Mountain summit'},
+{id:'norvan-falls',name:'Norvan Falls',region:'northshore',park:'Lynn Headwaters Regional Park, BC',near:'North Vancouver',
+ lengthKm:14.3,gainM:358,highM:420,difficulty:'Moderate',routeType:'Out & back',durationMin:226,
+ rating:4.6,activities:['hiking','snowshoeing','trail-running'],
+ features:['dogs-leash','forest','river','views','waterfall','wildlife'],
+ blurb:'A long, mostly flat valley-bottom walk beside Lynn Creek to a wide two-tier waterfall — old growth cedar and hemlock the whole way.',
+ endLabel:'Norvan Falls'},
+{id:'capilano-loop',name:'Capilano Canyon Loop',region:'northshore',park:'Capilano River Regional Park, BC',near:'North Vancouver',
+ lengthKm:5.8,gainM:224,highM:180,difficulty:'Moderate',routeType:'Loop',durationMin:108,
+ rating:4.7,activities:['birding','camping','hiking','trail-running'],
+ features:['dogs-leash','forest','lake','kids','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'A canyon-rim loop above the Capilano River, crossing suspension bridges with views down to the salmon hatchery and Cleveland Dam.',
+ endLabel:'Cleveland Dam'},
+{id:'bcmc',name:'BCMC Trail',region:'northshore',park:'Grouse Mountain Regional Park, BC',near:'North Vancouver',
+ lengthKm:2.7,gainM:790,highM:1090,difficulty:'Hard',routeType:'Point to point',durationMin:112,
+ rating:4.6,activities:['hiking','trail-running'],
+ features:['forest','views','wildlife','dogs-no'],
+ blurb:'The quieter, rootier alternative to the Grind, climbing the same face of Grouse Mountain with slightly more distance and fewer crowds.',
+ endLabel:'Grouse Mountain summit'},
+{id:'lynn-loop',name:'Lynn Loop Trail',region:'northshore',park:'Lynn Headwaters Regional Park, BC',near:'North Vancouver',
+ lengthKm:5.6,gainM:196,highM:250,difficulty:'Moderate',routeType:'Loop',durationMin:100,
+ rating:4.7,activities:['birding','hiking','trail-running'],
+ features:['dogs-leash','forest','kids','river','wildlife'],
+ blurb:'An easy forested loop on both banks of Lynn Creek — the standard warm-up or family outing in Lynn Headwaters.',
+ endLabel:'Lynn Creek crossing'},
+{id:'cleveland-dam-loop',name:'Cleveland Dam & Second Canyon Loop',region:'northshore',park:'Capilano River Regional Park, BC',near:'North Vancouver',
+ lengthKm:3.2,gainM:167,highM:150,difficulty:'Moderate',routeType:'Loop',durationMin:69,
+ rating:4.7,activities:['birding','hiking','trail-running'],
+ features:['dogs-leash','forest','lake','kids','river','views','wildlife'],
+ blurb:'A compact loop taking in the dam viewpoint over Capilano Lake and a short canyon overlook — good for a lunch-break hike.',
+ endLabel:'Second Canyon viewpoint'},
+
+{id:'angels-landing',name:'Angels Landing',region:'zion',park:'Zion National Park, UT',near:'Springdale',
+ lengthKm:7.7,gainM:532,highM:1769,difficulty:'Strenuous',routeType:'Out & back',durationMin:195,estDuration:true,
+ rating:4.9,reviews:41494,activities:['hiking'],
+ features:['dogs-no','partially-paved','river','views','wild-flowers','wildlife'],
+ blurb:'Switchbacks up Walter\'s Wiggles to a knife-edge ridge with fixed chains for the final scramble — exposed, permitted, and Zion\'s signature hike.',
+ endLabel:'Angels Landing', permitNote:'Requires an NPS lottery permit.', source:{id:10006571,url:'https://www.alltrails.com/trail/us/utah/angels-landing-trail'}},
+{id:'narrows-riverside',name:'Zion Narrows Riverside Walk',region:'zion',park:'Zion National Park, UT',near:'Zion Canyon',
+ lengthKm:3.4,gainM:132,highM:1370,difficulty:'Moderate',routeType:'Out & back',durationMin:63,
+ rating:4.6,activities:['walking','running'],
+ features:['forest','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no','paved'],
+ blurb:'A paved streamside path to the mouth of the Narrows, where the canyon closes in and hikers wade upriver from the end of the pavement.',
+ endLabel:'Mouth of the Narrows'},
+{id:'emerald-pools',name:'Emerald Pools Trail',region:'zion',park:'Zion National Park, UT',near:'Zion Canyon',
+ lengthKm:4.8,gainM:178,highM:1400,difficulty:'Moderate',routeType:'Loop',durationMin:88,
+ rating:4.6,activities:['hiking'],
+ features:['forest','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A family-friendly loop past three pool-and-waterfall tiers below the Zion Lodge, with a hanging garden at the upper pool.',
+ endLabel:'Upper Emerald Pool'},
+{id:'canyon-overlook',name:'Zion Canyon Overlook Trail',region:'zion',park:'Zion National Park, UT',near:'East Zion',
+ lengthKm:1.6,gainM:65,highM:1520,difficulty:'Moderate',routeType:'Out & back',durationMin:30,
+ rating:4.8,activities:['hiking','walking'],
+ features:['cave','kids','river','views','dogs-no'],
+ blurb:'A short slickrock scramble through a narrow passage to a sweeping overlook of lower Zion Canyon — the best view-per-minute in the park.',
+ endLabel:'Canyon Overlook'},
+{id:'observation-point',name:'Observation Point via East Mesa',region:'zion',park:'Zion National Park, UT',near:'East Zion',
+ lengthKm:11.3,gainM:215,highM:2148,difficulty:'Moderate',routeType:'Out & back',durationMin:164,
+ rating:4.8,activities:['hiking'],
+ features:['forest','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'The gentler back-door route to Zion\'s highest rim viewpoint, with less exposure and less elevation gain than the canyon-floor approach.',
+ endLabel:'Observation Point'},
+{id:'scout-lookout',name:'Scout Lookout via West Rim',region:'zion',park:'Zion National Park, UT',near:'Zion Canyon',
+ lengthKm:6.1,gainM:348,highM:1560,difficulty:'Hard',routeType:'Out & back',durationMin:138,
+ rating:4.9,activities:['hiking'],
+ features:['dogs-no','partially-paved','river','views'],
+ blurb:'The full Angels Landing approach without the chain section — climbs Walter\'s Wiggles to the saddle overlooking the West Rim.',
+ endLabel:'Scout Lookout'},
+
+{id:'bright-angel-3mile',name:'3-Mile Resthouse via Bright Angel',region:'grandcanyon',park:'Grand Canyon National Park, AZ',near:'South Rim',
+ lengthKm:10.5,gainM:642,highM:2087,difficulty:'Hard',routeType:'Out & back',durationMin:235,estDuration:true,
+ rating:4.8,reviews:5318,activities:['hiking'],
+ features:['dogs-no','river','views'],
+ blurb:'Switchbacks below the South Rim through the Redwall to a shaded resthouse — the standard turnaround for a strong day hike into the canyon.',
+ endLabel:'3-Mile Resthouse', source:{id:10237812,url:'https://www.alltrails.com/trail/us/arizona/three-mile-resthouse-via-bright-angel-trail'}},
+{id:'south-kaibab-ooh-aah',name:'South Kaibab to Ooh Aah Point',region:'grandcanyon',park:'Grand Canyon National Park, AZ',near:'South Rim',
+ lengthKm:3.2,gainM:202,highM:2260,difficulty:'Moderate',routeType:'Out & back',durationMin:76,
+ rating:4.8,activities:['hiking'],
+ features:['kids','views','wildlife','dogs-no'],
+ blurb:'The fastest way to a huge canyon view — a steep but short ridge-line descent with no shade and no water, so carry your own.',
+ endLabel:'Ooh Aah Point'},
+{id:'south-kaibab-skeleton',name:'South Kaibab to Skeleton Point',region:'grandcanyon',park:'Grand Canyon National Park, AZ',near:'South Rim',
+ lengthKm:9.8,gainM:618,highM:2260,difficulty:'Hard',routeType:'Out & back',durationMin:225,estDuration:true,
+ rating:4.9,activities:['hiking'],
+ features:['river','views','dogs-no'],
+ blurb:'Continues past Cedar Ridge along the exposed ridge line to the first view of the Colorado River, 1,000 m below the rim.',
+ endLabel:'Skeleton Point'},
+{id:'rim-trail-mather',name:'Rim Trail: Mather Point to Bright Angel',region:'grandcanyon',park:'Grand Canyon National Park, AZ',near:'South Rim',
+ lengthKm:9.7,gainM:135,highM:2170,difficulty:'Easy',routeType:'Out & back',durationMin:130,
+ rating:4.8,activities:['hiking','walking'],
+ features:['ada','dogs-leash','forest','kids','views','wildlife','partially-paved','strollers'],
+ blurb:'A paved, largely flat rim-edge walk linking the main South Rim viewpoints — the easiest way to see the canyon from many angles.',
+ endLabel:'Bright Angel Trailhead'},
+{id:'yavapai-point',name:'Yavapai Point via Rim Trail',region:'grandcanyon',park:'Grand Canyon National Park, AZ',near:'South Rim',
+ lengthKm:2.7,gainM:26,highM:2130,difficulty:'Easy',routeType:'Out & back',durationMin:34,
+ rating:4.8,activities:['walking'],
+ features:['ada','dogs-leash','kids','views','strollers'],
+ blurb:'A near-flat stroll to the geology museum viewpoint, one of the widest and most photographed views on the South Rim.',
+ endLabel:'Yavapai Point'},
+{id:'shoshone-point',name:'Shoshone Point',region:'grandcanyon',park:'Grand Canyon National Park, AZ',near:'South Rim',
+ lengthKm:3.4,gainM:47,highM:2260,difficulty:'Easy',routeType:'Out & back',durationMin:45,
+ rating:4.9,activities:['birding','hiking','snowshoeing','trail-running','walking'],
+ features:['ada','dogs-leash','forest','kids','views','wildlife'],
+ blurb:'An unmarked dirt-road walk through ponderosa forest to one of the quietest, least-crowded viewpoints on the entire South Rim.',
+ endLabel:'Shoshone Point'},
+
+{id:'five-lakes-loop',name:'Valley of the Five Lakes Loop',region:'jasper',park:'Jasper National Park, AB',near:'Jasper',
+ lengthKm:5.5,gainM:169,highM:1150,difficulty:'Moderate',routeType:'Loop',durationMin:92,
+ rating:4.6,activities:['hiking','mountain-biking'],features:['dogs-leash','forest','lake','kids','views','wild-flowers','wildlife'],
+ blurb:'A rolling forest walk linking five turquoise kettle lakes below the Athabasca valley — the most popular half-day hike in Jasper.',endLabel:'Fifth Lake'},
+{id:'old-fort-point',name:'Old Fort Point Trail',region:'jasper',park:'Jasper National Park, AB',near:'Jasper',
+ lengthKm:3.9,gainM:179,highM:1130,difficulty:'Moderate',routeType:'Loop',durationMin:78,
+ rating:4.7,activities:['birding','hiking','trail-running'],features:['dogs-leash','forest','lake','kids','river','views','wild-flowers'],
+ blurb:'A short, steep loop over a rocky knoll right in town, with the best view over the Athabasca River and the Jasper townsite.',endLabel:'Old Fort Point'},
+{id:'whistlers-tramway',name:'Whistlers Summit via Jasper Tramway',region:'jasper',park:'Jasper National Park, AB',near:'Jasper',
+ lengthKm:3.9,gainM:279,highM:2470,difficulty:'Moderate',routeType:'Out & back',durationMin:99,
+ rating:4.8,activities:['hiking','walking'],features:['kids','views','wildlife'],
+ blurb:'Ride the tramway up and walk the final ridge to the true summit of The Whistlers, above treeline with a 360° view of six mountain ranges.',endLabel:'Whistlers summit'},
+{id:'whistlers-trail',name:'The Whistlers Trail',region:'jasper',park:'Jasper National Park, AB',near:'Jasper',
+ lengthKm:16.3,gainM:1314,highM:2470,difficulty:'Hard',routeType:'Out & back',durationMin:446,
+ rating:4.7,activities:['birding','hiking','trail-running'],features:['dogs-leash','forest','views','wildlife'],
+ blurb:'The full climb up The Whistlers from the valley floor without the tramway shortcut — a long, sustained grind rewarded by an alpine summit.',endLabel:'Whistlers summit'},
+{id:'lake-annette',name:'Lake Annette Loop',region:'jasper',park:'Jasper National Park, AB',near:'Jasper',
+ lengthKm:2.7,gainM:90,highM:1070,difficulty:'Easy',routeType:'Loop',durationMin:48,
+ rating:4.7,activities:['hiking','walking','running'],features:['ada','beach','dogs-leash','forest','lake','kids','views','wildlife','paved','strollers'],
+ blurb:'A flat, paved lakeshore stroll with sandy beaches — an easy, accessible walk close to town.',endLabel:'Lake Annette'},
+{id:'edith-lake',name:'Edith Lake',region:'jasper',park:'Jasper National Park, AB',near:'Jasper',
+ lengthKm:4.7,gainM:147,highM:1080,difficulty:'Easy',routeType:'Loop',durationMin:80,
+ rating:4.5,activities:['birding','cross-country-skiing','hiking','mountain-biking','snowshoeing','trail-running'],features:['beach','dogs','forest','lake','kids','views','wildlife'],
+ blurb:'A quieter neighbour to Lake Annette, looping through forest to a beach with views across to Pyramid Mountain.',endLabel:'Edith Lake'},
+
+{id:'emerald-lake-loop',name:'Emerald Lake Loop',region:'yoho',park:'Yoho National Park, BC',near:'Field',
+ lengthKm:5.3,gainM:128,highM:1480,difficulty:'Easy',routeType:'Loop',durationMin:83,
+ rating:4.6,activities:['birding','hiking','trail-running','walking'],features:['ada','dogs-leash','forest','lake','kids','river','views','wild-flowers','wildlife','strollers'],
+ blurb:'A flat circuit around one of the Rockies\' most photographed lakes, with the President Range reflected on a calm day.',endLabel:'Emerald Lake'},
+{id:'takakkaw-falls',name:'Takakkaw Falls Trail',region:'yoho',park:'Yoho National Park, BC',near:'Yoho Valley',
+ lengthKm:1.4,gainM:40,highM:1470,difficulty:'Easy',routeType:'Out & back',durationMin:24,
+ rating:4.8,activities:['birding','snowshoeing','walking','running'],features:['ada','dogs-leash','forest','kids','river','views','waterfall','wildlife','historic-site','partially-paved','strollers'],
+ blurb:'A short paved path to the base of one of Canada\'s tallest waterfalls, dropping 254 m from a hanging valley.',endLabel:'Takakkaw Falls'},
+{id:'iceline-loop',name:'Iceline, Little Yoho & Yoho Valley Loop',region:'yoho',park:'Yoho National Park, BC',near:'Yoho Valley',
+ lengthKm:21.1,gainM:1044,highM:2350,difficulty:'Hard',routeType:'Loop',durationMin:441,
+ rating:4.9,activities:['camping','hiking','snowshoeing','trail-running','backpacking'],features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'A full-day alpine traverse across glacier-carved benches above the Yoho Valley, with near-constant views of hanging glaciers.',endLabel:'Iceline benches'},
+{id:'lake-ohara-oesa',name:'Lake O\'Hara & Lake Oesa Loop',region:'yoho',park:'Yoho National Park, BC',near:'Lake O\'Hara',
+ lengthKm:9.5,gainM:465,highM:2270,difficulty:'Moderate',routeType:'Loop',durationMin:230,estDuration:true,
+ rating:4.9,activities:['birding','camping','hiking','snowshoeing','backpacking'],features:['dogs-leash','forest','lake','kids','river','views','waterfall','wildlife','partially-paved'],
+ blurb:'Access-restricted and bus-only, Lake O\'Hara\'s alpine circuit is often called the most beautiful day hike in the Canadian Rockies.',endLabel:'Lake Oesa'},
+{id:'sherbrooke-lake',name:'Sherbrooke Lake',region:'yoho',park:'Yoho National Park, BC',near:'Field',
+ lengthKm:9.7,gainM:386,highM:1830,difficulty:'Moderate',routeType:'Out & back',durationMin:183,
+ rating:4.7,activities:['birding','cross-country-skiing','hiking','snowshoeing','trail-running'],features:['dogs-leash','forest','lake','kids','river','views','waterfall','wildlife'],
+ blurb:'A steady climb through old-growth forest to a long subalpine lake beneath Paget Peak, far quieter than the valley-floor trails.',endLabel:'Sherbrooke Lake'},
+{id:'lake-mcarthur',name:'Lake McArthur & Big Larches Loop',region:'yoho',park:'Yoho National Park, BC',near:'Lake O\'Hara',
+ lengthKm:7.6,gainM:371,highM:2360,difficulty:'Moderate',routeType:'Loop',durationMin:158,
+ rating:4.9,activities:['hiking','snowshoeing','trail-running'],features:['dogs-leash','forest','lake','kids','views','wildlife'],
+ blurb:'The deepest lake in the Yoho alpine, an intense glacial blue, reached via a golden-larch bench in early autumn.',endLabel:'Lake McArthur'},
+
+{id:'lost-lake-whistler',name:'Lost Lake',region:'whistler',park:'Lost Lake Park, BC',near:'Whistler',
+ lengthKm:4.0,gainM:102,highM:700,difficulty:'Easy',routeType:'Loop',durationMin:63,
+ rating:4.7,activities:['birding','cross-country-skiing','hiking','mountain-biking','trail-running'],features:['beach','forest','lake','river','views','wildlife'],
+ blurb:'A gentle forested loop around a swimmable lake a few minutes\' walk from Whistler Village.',endLabel:'Lost Lake'},
+{id:'rainbow-falls-loop',name:'Rainbow Falls Loop',region:'whistler',park:'Whistler, BC',near:'Whistler',
+ lengthKm:2.4,gainM:144,highM:720,difficulty:'Moderate',routeType:'Loop',durationMin:55,
+ rating:4.7,activities:['hiking','mountain-biking','trail-running'],features:['forest','river','views','waterfall'],
+ blurb:'A quick loop to a curtain waterfall on the Alta Lake side of Whistler, easy to combine with a lake swim.',endLabel:'Rainbow Falls'},
+{id:'high-note-loop',name:'Harmony Lake – Musical Bumps – High Note',region:'whistler',park:'Garibaldi Provincial Park, BC',near:'Whistler',
+ lengthKm:10.5,gainM:781,highM:2180,difficulty:'Hard',routeType:'Point to point',durationMin:240,
+ rating:4.8,activities:['hiking','snowshoeing','walking'],features:['lake','river','views','wild-flowers','wildlife'],
+ blurb:'Alpine ridge-walking above Whistler with Black Tusk and the Fitzsimmons Range in constant view — accessed by gondola.',endLabel:'High Note ridge'},
+{id:'overlord-lakeside',name:'Overlord, Lakeside & Decker Loop',region:'whistler',park:'Blackcomb Glacier Provincial Park, BC',near:'Whistler',
+ lengthKm:9.7,gainM:553,highM:2040,difficulty:'Moderate',routeType:'Loop',durationMin:218,
+ rating:4.8,activities:['birding','hiking','trail-running'],features:['forest','lake','river','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A glacier-fed alpine lake loop on Blackcomb Mountain, reached by gondola with wildflower meadows in midsummer.',endLabel:'Blackcomb Lake'},
+{id:'singing-pass-russet',name:'Singing Pass to Russet Lake',region:'whistler',park:'Garibaldi Provincial Park, BC',near:'Whistler',
+ lengthKm:29.8,gainM:1632,highM:2210,difficulty:'Hard',routeType:'Out & back',durationMin:657,
+ rating:4.6,activities:['camping','hiking','snowshoeing','backpacking'],features:['forest','lake','river','views','waterfall','wildlife','dogs-no'],
+ blurb:'A long alpine approach to Russet Lake below Fissile Peak — a full-day epic or an overnight backpack.',endLabel:'Russet Lake'},
+{id:'rainbow-lake-trail',name:'Rainbow Lake Trail',region:'whistler',park:'Whistler, BC',near:'Whistler',
+ lengthKm:16.6,gainM:902,highM:1615,difficulty:'Hard',routeType:'Out & back',durationMin:364,
+ rating:4.6,activities:['camping','hiking','snowshoeing','trail-running'],features:['forest','lake','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A steep climb from the valley to a subalpine lake below Rainbow Mountain, with waterfalls partway up.',endLabel:'Rainbow Lake'},
+
+{id:'wild-pacific-trail',name:'Wild Pacific Trail: Brown\'s Beach to Rocky Bluffs',region:'pacificrim',park:'Ucluelet, BC',near:'Ucluelet',
+ lengthKm:7.6,gainM:112,highM:30,difficulty:'Easy',routeType:'Out & back',durationMin:103,
+ rating:4.8,activities:['birding','hiking','trail-running'],features:['beach','dogs-leash','forest','views','wildlife'],
+ blurb:'A rugged, wind-swept coastal path along wave-battered headlands on the edge of the open Pacific.',endLabel:'Rocky Bluffs'},
+{id:'rainforest-trail',name:'Rainforest Trail: A and B',region:'pacificrim',park:'Pacific Rim National Park Reserve, BC',near:'Ucluelet',
+ lengthKm:2.6,gainM:46,highM:60,difficulty:'Easy',routeType:'Loop',durationMin:37,
+ rating:4.8,activities:['hiking','trail-running','walking'],features:['dogs-leash','forest','kids','wildlife'],
+ blurb:'A boardwalk figure-eight through old-growth temperate rainforest — massive cedars and hemlock draped in moss.',endLabel:'Rainforest loop'},
+{id:'tonquin-trail',name:'Tonquin Trail',region:'pacificrim',park:'Tofino, BC',near:'Tofino',
+ lengthKm:3.2,gainM:85,highM:20,difficulty:'Easy',routeType:'Out & back',durationMin:52,
+ rating:4.7,activities:['birding','hiking','trail-running','walking'],features:['beach','dogs-leash','forest','lake','kids','views','wildlife','partially-paved'],
+ blurb:'A short boardwalk connecting Tonquin Park to a quiet beach, easy enough for the whole family.',endLabel:'Tonquin Beach'},
+{id:'canso-bomber',name:'Canso Bomber Ruins Trail',region:'pacificrim',park:'Pacific Rim National Park Reserve, BC',near:'Ucluelet',
+ lengthKm:8.0,gainM:256,highM:120,difficulty:'Moderate',routeType:'Out & back',durationMin:150,estDuration:true,
+ rating:4.6,activities:['hiking'],features:['dogs-leash','forest','kids','views','wildlife','partially-paved'],
+ blurb:'A forest walk to the wreckage of a WWII-era Canso flying boat, still resting where it crashed in the bush.',endLabel:'Bomber wreck site'},
+{id:'apsciik-tasii',name:'ʔapsčiik t̓ašii Path',region:'pacificrim',park:'Pacific Rim National Park Reserve, BC',near:'Tofino',
+ lengthKm:22.2,gainM:349,highM:60,difficulty:'Moderate',routeType:'Point to point',durationMin:306,
+ rating:4.5,activities:['birding','camping','road-biking','walking','running'],features:['beach','forest','views','wild-flowers','wildlife','paved'],
+ blurb:'A paved multi-use path linking Tofino and Ucluelet through coastal rainforest — bike it, walk a section, or do it end to end.',endLabel:'Ucluelet'},
+{id:'cox-bay-lookout',name:'Cox Bay Lookout',region:'pacificrim',park:'Pacific Rim National Park Reserve, BC',near:'Tofino',
+ lengthKm:2.7,gainM:127,highM:70,difficulty:'Moderate',routeType:'Out & back',durationMin:55,
+ rating:4.4,activities:['birding','camping','hiking','trail-running'],features:['beach','dogs-leash','forest','kids','views','wildlife'],
+ blurb:'A short climb to a viewpoint over Cox Bay\'s surf beach, popular with storm-watchers in winter.',endLabel:'Cox Bay viewpoint'},
+
+{id:'track-and-tower',name:'Track and Tower Trail',region:'algonquin',park:'Algonquin Provincial Park, ON',near:'Highway 60',
+ lengthKm:8.4,gainM:270,highM:480,difficulty:'Moderate',routeType:'Loop',durationMin:145,
+ rating:4.7,activities:['birding','hiking','snowshoeing','walking'],features:['forest','lake','river','views','waterfall','wild-flowers','wildlife','historic-site'],
+ blurb:'A loop past an old logging railway grade and a fire tower site, with a lookout over the Algonquin lake country.',endLabel:'Fire tower site'},
+{id:'centennial-ridges',name:'Centennial Ridges Trail',region:'algonquin',park:'Algonquin Provincial Park, ON',near:'Highway 60',
+ lengthKm:10.3,gainM:470,highM:520,difficulty:'Hard',routeType:'Loop',durationMin:208,
+ rating:4.8,activities:['camping','hiking','snowshoeing','trail-running'],features:['dogs-leash','forest','lake','river','views','wildlife','historic-site'],
+ blurb:'The best view hike in Algonquin — a rolling ridge walk with several open granite lookouts over lake-studded forest.',endLabel:'Ridge lookout'},
+{id:'booths-rock',name:'Booth\'s Rock Trail',region:'algonquin',park:'Algonquin Provincial Park, ON',near:'Rock Lake',
+ lengthKm:6.0,gainM:233,highM:430,difficulty:'Moderate',routeType:'Loop',durationMin:112,
+ rating:4.7,activities:['camping','hiking','snowshoeing','trail-running','paddle-sports'],features:['dogs-leash','forest','lake','kids','views','wildlife','historic-site'],
+ blurb:'A loop past old homestead ruins to a cliff-top view over Rock Lake, one of Algonquin\'s classic day hikes.',endLabel:'Booth\'s Rock lookout'},
+{id:'spruce-bog',name:'Spruce Bog Boardwalk',region:'algonquin',park:'Algonquin Provincial Park, ON',near:'Highway 60',
+ lengthKm:1.6,gainM:58,highM:410,difficulty:'Easy',routeType:'Loop',durationMin:30,
+ rating:4.6,activities:['birding','hiking','trail-running'],features:['dogs-leash','forest','kids','river','views','wildlife','partially-paved','strollers'],
+ blurb:'A flat boardwalk loop through a black spruce bog — one of the easiest and most family-friendly trails in the park.',endLabel:'Bog boardwalk'},
+{id:'mizzy-lake',name:'Mizzy Lake Trail',region:'algonquin',park:'Algonquin Provincial Park, ON',near:'Highway 60',
+ lengthKm:11.7,gainM:574,highM:470,difficulty:'Moderate',routeType:'Loop',durationMin:243,
+ rating:4.5,activities:['birding','camping','hiking','trail-running','paddle-sports'],features:['forest','lake','river','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'Algonquin\'s best wildlife-watching trail, passing nine ponds and lakes with good odds of moose at dawn or dusk.',endLabel:'Mizzy Lake'},
+{id:'western-uplands',name:'Western Uplands Backpacking Trail (Short Loop)',region:'algonquin',park:'Algonquin Provincial Park, ON',near:'Highway 60',
+ lengthKm:32.7,gainM:1073,highM:560,difficulty:'Hard',routeType:'Loop',durationMin:570,
+ rating:4.4,activities:['camping','hiking','trail-running','backpacking'],features:['dogs-leash','forest','lake','river','views','wildlife'],
+ blurb:'A multi-day backcountry loop through Algonquin\'s interior lake country — the short loop still takes a strong weekend.',endLabel:'Backcountry campsite'},
+
+{id:'georgian-bay-grotto',name:'Georgian Bay Trail: The Grotto and Horse Lake',region:'brucepeninsula',park:'Bruce Peninsula National Park, ON',near:'Tobermory',
+ lengthKm:3.9,gainM:67,highM:200,difficulty:'Easy',routeType:'Loop',durationMin:55,
+ rating:4.8,activities:['birding','camping','hiking','snowshoeing','trail-running'],features:['beach','cave','dogs-leash','forest','lake','kids','river','views','wildlife','historic-site'],
+ blurb:'A short loop to the Grotto, a sea cave with turquoise water carved into the Niagara Escarpment cliffs.',endLabel:'The Grotto'},
+{id:'cyprus-lake-trail',name:'Cyprus Lake Trail',region:'brucepeninsula',park:'Bruce Peninsula National Park, ON',near:'Tobermory',
+ lengthKm:5.5,gainM:52,highM:210,difficulty:'Moderate',routeType:'Loop',durationMin:68,
+ rating:4.5,activities:['birding','camping','cross-country-skiing','hiking','snowshoeing','trail-running'],features:['dogs-leash','forest','lake','kids','river','views','wildlife','historic-site'],
+ blurb:'A forested loop around Cyprus Lake, the access point for the park\'s Georgian Bay clifftop trails.',endLabel:'Cyprus Lake'},
+{id:'log-dump-loop',name:'Log Dump, Cave Point and the Grotto',region:'brucepeninsula',park:'Bruce Peninsula National Park, ON',near:'Tobermory',
+ lengthKm:12.7,gainM:393,highM:210,difficulty:'Moderate',routeType:'Out & back',durationMin:217,
+ rating:4.8,activities:['birding','camping','hiking'],features:['beach','cave','forest','lake','views','wildlife'],
+ blurb:'The full clifftop traverse linking several sea caves and lookouts along the Georgian Bay escarpment.',endLabel:'The Grotto'},
+{id:'stormhaven-overhang',name:'Bruce Trail: Stormhaven and The Overhang',region:'brucepeninsula',park:'Bruce Peninsula National Park, ON',near:'Tobermory',
+ lengthKm:11.3,gainM:313,highM:210,difficulty:'Moderate',routeType:'Loop',durationMin:184,
+ rating:4.7,activities:['birding','camping','hiking','snowshoeing','trail-running'],features:['beach','cave','dogs-leash','forest','lake','kids','river','views','wild-flowers','wildlife','historic-site','partially-paved'],
+ blurb:'A quieter section of the Bruce Trail\'s northern terminus, with dramatic overhanging cliffs above Georgian Bay.',endLabel:'The Overhang'},
+{id:'singing-sands',name:'Singing Sands Trail',region:'brucepeninsula',park:'Bruce Peninsula National Park, ON',near:'Tobermory',
+ lengthKm:1.6,gainM:14,highM:180,difficulty:'Easy',routeType:'Loop',durationMin:20,
+ rating:4.4,activities:['birding','walking','paddle-sports','running'],features:['beach','dogs-leash','lake','kids','river','views','wild-flowers','wildlife','historic-site','partially-paved'],
+ blurb:'A flat boardwalk to a sandy Lake Huron beach — the easiest trail in the park and a good swimming spot.',endLabel:'Singing Sands beach'},
+{id:'bruce-trail-loon-lake',name:'Bruce Trail: Tobermory to Loon Lake',region:'brucepeninsula',park:'Little Cove Provincial Park, ON',near:'Tobermory',
+ lengthKm:32.0,gainM:606,highM:220,difficulty:'Hard',routeType:'Out & back',durationMin:464,
+ rating:4.8,activities:['birding','hiking','backpacking'],features:['beach','dogs-leash','lake','views','wildlife'],
+ blurb:'The northern terminus of Canada\'s oldest marked trail, following the Georgian Bay shoreline south from Tobermory.',endLabel:'Loon Lake'},
+
+{id:'green-mountain-loop',name:'Green Mountain Loop',region:'monttremblant',park:'Lac-Tremblant-Nord, QC',near:'Mont-Tremblant',
+ lengthKm:3.2,gainM:187,highM:440,difficulty:'Moderate',routeType:'Loop',durationMin:72,
+ rating:4.7,activities:['birding','hiking','snowshoeing','trail-running'],features:['dogs-leash','forest','lake','kids','river','views','waterfall','wildlife'],
+ blurb:'A forested loop above Lac Tremblant-Nord with a lookout over the lake and surrounding Laurentian hills.',endLabel:'Green Mountain lookout'},
+{id:'grand-brule-pic-white',name:'Grand Brûlé to Pic White',region:'monttremblant',park:'Mont-Tremblant National Park, QC',near:'Mont-Tremblant',
+ lengthKm:12.1,gainM:637,highM:790,difficulty:'Hard',routeType:'Out & back',durationMin:261,
+ rating:4.7,activities:['hiking','snowshoeing','trail-running'],features:['forest','lake','river','views','waterfall','wildlife'],
+ blurb:'A long climb through the Grand Brûlé burn corridor to Pic White, one of the park\'s highest viewpoints.',endLabel:'Pic White'},
+{id:'sommet-tremblant',name:'Summit of Mont Tremblant via Grand Brûlé and Les Caps',region:'monttremblant',park:'Mont-Tremblant National Park, QC',near:'Mont-Tremblant',
+ lengthKm:11.1,gainM:639,highM:875,difficulty:'Hard',routeType:'Loop',durationMin:252,
+ rating:4.7,activities:['hiking'],features:['forest','views','waterfall','wildlife','dogs-no'],
+ blurb:'The classic summit push in the park, looping past the Les Caps ridge for sweeping Laurentian views.',endLabel:'Mont Tremblant summit'},
+{id:'les-ruisseaux',name:'Les Ruisseaux Loop',region:'monttremblant',park:'Mont-Tremblant National Park, QC',near:'Mont-Tremblant',
+ lengthKm:2.4,gainM:86,highM:340,difficulty:'Easy',routeType:'Loop',durationMin:44,
+ rating:4.6,activities:['hiking','walking'],features:['forest','river','views','waterfall','wildlife','dogs-no'],
+ blurb:'A gentle streamside loop, one of the easiest trails in the park and a good option after rain.',endLabel:'Les Ruisseaux'},
+{id:'la-villageoise',name:'La Villageoise Loop',region:'monttremblant',park:'Mont-Tremblant, QC',near:'Mont-Tremblant Village',
+ lengthKm:6.8,gainM:130,highM:290,difficulty:'Easy',routeType:'Loop',durationMin:98,
+ rating:4.6,activities:['hiking','road-biking','walking','bike-touring'],features:['beach','forest','lake','kids','river','views','paved','strollers'],
+ blurb:'A flat, paved lakeshore loop close to the village — easy walking or a family bike ride.',endLabel:'Village lakeshore'},
+{id:'nez-de-lindien',name:'Nez-de-l\'Indien',region:'monttremblant',park:'Lac-Tremblant-Nord, QC',near:'Mont-Tremblant',
+ lengthKm:8.5,gainM:351,highM:610,difficulty:'Moderate',routeType:'Out & back',durationMin:163,
+ rating:4.7,activities:['hiking','snowshoeing'],features:['dogs-leash','forest','lake','kids','views','wildlife'],
+ blurb:'A climb to a rocky outcrop shaped like a profile looking over Lac Tremblant, popular at fall-colour peak.',endLabel:'Nez-de-l\'Indien lookout'},
+
+{id:'delicate-arch',name:'Delicate Arch Trail',region:'arches',park:'Arches National Park, UT',near:'Moab',
+ lengthKm:5.0,gainM:192,highM:1650,difficulty:'Moderate',routeType:'Out & back',durationMin:93,
+ rating:4.9,activities:['hiking'],features:['kids','views','wild-flowers','wildlife','dogs-no','partially-paved'],
+ blurb:'Slickrock and one exposed ledge lead to Utah\'s iconic freestanding arch, best at sunset.',endLabel:'Delicate Arch',source:{id:10012464,url:'https://www.alltrails.com/trail/us/utah/delicate-arch-trail'}},
+{id:'devils-garden',name:'Devil\'s Garden Trail',region:'arches',park:'Arches National Park, UT',near:'Moab',
+ lengthKm:13.0,gainM:352,highM:1600,difficulty:'Strenuous',routeType:'Loop',durationMin:230,estDuration:true,
+ rating:4.9,activities:['hiking'],features:['views','wildlife','dogs-no','partially-paved'],
+ blurb:'The park\'s longest maintained trail, passing seven named arches including the massive Landscape Arch.',endLabel:'Double O Arch'},
+{id:'landscape-arch',name:'Landscape Arch Trail',region:'arches',park:'Arches National Park, UT',near:'Moab',
+ lengthKm:3.1,gainM:75,highM:1580,difficulty:'Easy',routeType:'Out & back',durationMin:48,
+ rating:4.7,activities:['hiking'],features:['forest','kids','views','wild-flowers','dogs-no','partially-paved'],
+ blurb:'A flat, easy walk to one of the longest natural rock spans in the world — thin enough to look fragile.',endLabel:'Landscape Arch'},
+{id:'windows-loop',name:'Windows Loop and Turret Arch Trail',region:'arches',park:'Arches National Park, UT',near:'Moab',
+ lengthKm:1.8,gainM:41,highM:1670,difficulty:'Easy',routeType:'Loop',durationMin:27,
+ rating:4.8,activities:['hiking','snowshoeing'],features:['kids','views','wildlife','dogs-no'],
+ blurb:'A short loop past three big arches in quick succession — a great introduction to the park.',endLabel:'North Window'},
+{id:'fiery-furnace',name:'Fiery Furnace and Surprise Arch',region:'arches',park:'Arches National Park, UT',near:'Moab',
+ lengthKm:3.5,gainM:155,highM:1620,difficulty:'Strenuous',routeType:'Loop',durationMin:120,estDuration:true,
+ rating:4.9,activities:['hiking'],features:['views','wildlife','dogs-no'],
+ blurb:'A maze of narrow sandstone canyons that requires a permit or ranger-led tour — route-finding, not a marked path.',endLabel:'Surprise Arch'},
+{id:'park-avenue',name:'Park Avenue Trail',region:'arches',park:'Arches National Park, UT',near:'Moab',
+ lengthKm:2.9,gainM:94,highM:1600,difficulty:'Easy',routeType:'Out & back',durationMin:50,
+ rating:4.7,activities:['hiking','trail-running'],features:['kids','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A walk through a canyon of towering sandstone fins that resemble a skyline of skyscrapers.',endLabel:'Park Avenue viewpoint'},
+
+{id:'vernal-nevada-falls',name:'Vernal and Nevada Falls via Mist Trail',region:'yosemite',park:'Yosemite National Park, CA',near:'Yosemite Valley',
+ lengthKm:10.8,gainM:657,highM:1900,difficulty:'Hard',routeType:'Loop',durationMin:252,
+ rating:4.9,activities:['hiking','running'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no','partially-paved'],
+ blurb:'Yosemite\'s signature waterfall hike, climbing granite steps beside two thundering falls in spring runoff.',endLabel:'Nevada Fall'},
+{id:'upper-yosemite-falls',name:'Upper Yosemite Falls Trail',region:'yosemite',park:'Yosemite National Park, CA',near:'Yosemite Valley',
+ lengthKm:10.8,gainM:987,highM:2210,difficulty:'Hard',routeType:'Out & back',durationMin:321,
+ rating:4.8,activities:['camping','hiking','backpacking'],features:['forest','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A relentless switchback climb to the top of North America\'s tallest waterfall, with Half Dome behind you the whole way up.',endLabel:'Upper Yosemite Fall'},
+{id:'half-dome-jmt',name:'Half Dome via the John Muir Trail',region:'yosemite',park:'Yosemite National Park, CA',near:'Yosemite Valley',
+ lengthKm:27.7,gainM:1617,highM:2690,difficulty:'Strenuous',routeType:'Out & back',durationMin:600,estDuration:true,
+ rating:4.9,activities:['camping','hiking','rock-climbing','via-ferrata'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'Cables up the final granite dome cap a full-day epic — a permit lottery hike and Yosemite\'s ultimate test piece.',endLabel:'Half Dome summit',permitNote:'Requires an NPS lottery permit for the cables.'},
+{id:'mirror-lake-loop',name:'Mirror Lake Loop',region:'yosemite',park:'Yosemite National Park, CA',near:'Yosemite Valley',
+ lengthKm:8.2,gainM:93,highM:1300,difficulty:'Easy',routeType:'Loop',durationMin:106,
+ rating:4.6,activities:['hiking','running'],features:['forest','lake','river','views','wild-flowers','wildlife','dogs-no','historic-site','partially-paved'],
+ blurb:'A gentle valley-floor loop to a seasonal reflecting pool below Half Dome and Tenaya Canyon.',endLabel:'Mirror Lake'},
+{id:'lower-yosemite-falls',name:'Lower Yosemite Falls Trail',region:'yosemite',park:'Yosemite National Park, CA',near:'Yosemite Valley',
+ lengthKm:1.9,gainM:18,highM:1230,difficulty:'Easy',routeType:'Loop',durationMin:24,
+ rating:4.7,activities:['hiking','walking'],features:['ada','cave','dogs-leash','forest','kids','river','views','waterfall','wildlife','partially-paved','strollers'],
+ blurb:'A flat, paved path to the base of Lower Yosemite Fall — the easiest big view in the valley.',endLabel:'Lower Yosemite Fall'},
+{id:'cooks-meadow',name:'Cook\'s Meadow Trail',region:'yosemite',park:'Yosemite National Park, CA',near:'Yosemite Valley',
+ lengthKm:1.8,gainM:9,highM:1210,difficulty:'Easy',routeType:'Loop',durationMin:21,
+ rating:4.8,activities:['hiking','running'],features:['ada','dogs-leash','forest','kids','river','views','waterfall','wild-flowers','wildlife','partially-paved','strollers'],
+ blurb:'A flat boardwalk loop through an open meadow with postcard views of Half Dome, Yosemite Falls and Sentinel Rock.',endLabel:'Meadow boardwalk'},
+
+{id:'general-sherman',name:'General Sherman Tree Trail',region:'sequoia',park:'Sequoia National Park, CA',near:'Giant Forest',
+ lengthKm:1.8,gainM:58,highM:2080,difficulty:'Easy',routeType:'Out & back',durationMin:31,
+ rating:4.7,activities:['hiking','walking'],features:['forest','kids','views','wildlife','dogs-no','paved'],
+ blurb:'A short paved walk to the largest tree on Earth by volume — 84 m tall and over 2,000 years old.',endLabel:'General Sherman Tree'},
+{id:'congress-trail',name:'Congress Trail',region:'sequoia',park:'Sequoia National Park, CA',near:'Giant Forest',
+ lengthKm:4.7,gainM:148,highM:2080,difficulty:'Easy',routeType:'Loop',durationMin:81,
+ rating:4.9,activities:['hiking','snowshoeing'],features:['forest','kids','views','wildlife','dogs-no','paved'],
+ blurb:'A paved loop deep into Giant Forest, past the House and Senate tree groups and the President Tree.',endLabel:'Giant Forest loop'},
+{id:'moro-rock',name:'Moro Rock',region:'sequoia',park:'Sequoia National Park, CA',near:'Giant Forest',
+ lengthKm:0.8,gainM:55,highM:2050,difficulty:'Moderate',routeType:'Out & back',durationMin:19,
+ rating:4.8,activities:['hiking'],features:['kids','views','dogs-no'],
+ blurb:'400 concrete steps up a granite dome to a panoramic view over the Great Western Divide.',endLabel:'Moro Rock summit'},
+{id:'tokopah-falls',name:'Tokopah Falls',region:'sequoia',park:'Sequoia National Park, CA',near:'Lodgepole',
+ lengthKm:6.6,gainM:188,highM:2100,difficulty:'Moderate',routeType:'Out & back',durationMin:109,
+ rating:4.8,activities:['camping','hiking','trail-running','walking'],features:['forest','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A riverside canyon walk to a 366 m cascading waterfall below granite cliffs — spectacular during spring snowmelt.',endLabel:'Tokopah Falls'},
+{id:'alta-peak',name:'Alta Peak via Lakes, Panther Gap, and Alta Trail',region:'sequoia',park:'Sequoia National Park, CA',near:'Giant Forest',
+ lengthKm:22.2,gainM:1216,highM:3415,difficulty:'Strenuous',routeType:'Out & back',durationMin:489,
+ rating:4.8,activities:['camping','cross-country-skiing','hiking','snowshoeing','trail-running','horseback-riding','backpacking'],features:['forest','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A full-day summit push above treeline for a view over the Great Western Divide and the Kaweah peaks.',endLabel:'Alta Peak'},
+{id:'crescent-meadow',name:'Crescent Meadow Loop',region:'sequoia',park:'Sequoia National Park, CA',near:'Giant Forest',
+ lengthKm:2.1,gainM:41,highM:2030,difficulty:'Easy',routeType:'Loop',durationMin:30,
+ rating:4.8,activities:['birding','hiking','walking'],features:['forest','kids','views','wild-flowers','dogs-no'],
+ blurb:'John Muir called it the "gem of the Sierra" — a flat loop around a lush meadow ringed by giant sequoias.',endLabel:'Crescent Meadow'},
+
+{id:'arch-rock-jtree',name:'Arch Rock Trail',region:'joshuatree',park:'Joshua Tree National Park, CA',near:'White Tank',
+ lengthKm:1.9,gainM:27,highM:1200,difficulty:'Easy',routeType:'Out & back',durationMin:26,
+ rating:4.7,activities:['camping','hiking','walking'],features:['lake','kids','views','wildlife','dogs-no','strollers'],
+ blurb:'A short desert walk to a natural stone arch balanced among granite boulders.',endLabel:'Arch Rock'},
+{id:'skull-rock',name:'Skull Rock',region:'joshuatree',park:'Joshua Tree National Park, CA',near:'Jumbo Rocks',
+ lengthKm:2.7,gainM:44,highM:1270,difficulty:'Easy',routeType:'Loop',durationMin:38,
+ rating:4.6,activities:['camping','hiking','walking'],features:['kids','views','wildlife','dogs-no'],
+ blurb:'A loop past a boulder eroded into a skull shape, weaving through classic Joshua Tree rock piles.',endLabel:'Skull Rock'},
+{id:'mastodon-peak',name:'Mastodon Peak',region:'joshuatree',park:'Joshua Tree National Park, CA',near:'Cottonwood',
+ lengthKm:4.0,gainM:126,highM:1200,difficulty:'Moderate',routeType:'Loop',durationMin:80,estDuration:true,
+ rating:4.8,activities:['hiking'],features:['forest','kids','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A rocky scramble to a summit view over the Eagle Mountains, past an old gold-mining site.',endLabel:'Mastodon Peak'},
+{id:'lost-palms-oasis',name:'Lost Palms Oasis Trail',region:'joshuatree',park:'Joshua Tree National Park, CA',near:'Cottonwood',
+ lengthKm:11.9,gainM:319,highM:1080,difficulty:'Moderate',routeType:'Out & back',durationMin:200,estDuration:true,
+ rating:4.8,activities:['hiking'],features:['views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A desert-wash walk to the park\'s largest native fan-palm oasis, a green surprise in the rock and scrub.',endLabel:'Lost Palms Oasis'},
+{id:'cholla-garden',name:'Cholla Cactus Garden',region:'joshuatree',park:'Joshua Tree National Park, CA',near:'Pinto Basin',
+ lengthKm:0.3,gainM:2,highM:790,difficulty:'Easy',routeType:'Loop',durationMin:4,
+ rating:4.7,activities:['birding','hiking','walking'],features:['ada','kids','views','wild-flowers','wildlife','dogs-no','partially-paved','strollers'],
+ blurb:'A tiny loop through a dense stand of glowing teddy-bear cholla, best at sunrise or sunset.',endLabel:'Cholla garden'},
+{id:'split-rock-loop',name:'Split Rock Loop',region:'joshuatree',park:'Joshua Tree National Park, CA',near:'Split Rock',
+ lengthKm:4.0,gainM:95,highM:1310,difficulty:'Easy',routeType:'Loop',durationMin:62,
+ rating:4.8,activities:['birding','hiking','trail-running','walking'],features:['kids','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A quieter loop among huge split boulders, popular with climbers but usually peaceful for hikers.',endLabel:'Split Rock'},
+
+{id:'grand-prismatic',name:'Grand Prismatic Overlook Trail',region:'yellowstone',park:'Yellowstone National Park, WY',near:'Midway Geyser Basin',
+ lengthKm:2.6,gainM:63,highM:2260,difficulty:'Easy',routeType:'Out & back',durationMin:40,
+ rating:4.7,activities:['walking'],features:['ada','forest','lake','kids','hot-springs','river','views','dogs-no','strollers'],
+ blurb:'A short climb to a hillside overlook above the largest hot spring in the US, rainbow-colored by heat-loving microbes.',endLabel:'Grand Prismatic overlook'},
+{id:'upper-geyser-loop',name:'Upper Geyser Basin & Old Faithful Loop',region:'yellowstone',park:'Yellowstone National Park, WY',near:'Old Faithful',
+ lengthKm:7.9,gainM:109,highM:2245,difficulty:'Moderate',routeType:'Loop',durationMin:106,
+ rating:4.8,activities:['birding','walking'],features:['ada','forest','kids','hot-springs','river','views','wildlife','dogs-no','strollers'],
+ blurb:'A boardwalk tour through the world\'s densest concentration of geysers, including Old Faithful itself.',endLabel:'Old Faithful area'},
+{id:'fairy-falls-trail',name:'Fairy Falls Trail',region:'yellowstone',park:'Yellowstone National Park, WY',near:'Midway Geyser Basin',
+ lengthKm:7.9,gainM:53,highM:2280,difficulty:'Easy',routeType:'Out & back',durationMin:94,
+ rating:4.6,activities:['camping','hiking','trail-running'],features:['ada','forest','kids','hot-springs','river','views','waterfall','wild-flowers','wildlife','dogs-no','historic-site','strollers'],
+ blurb:'A flat forest walk to a slender 61 m waterfall, with a detour to a hidden hot-spring-fed pool.',endLabel:'Fairy Falls'},
+{id:'mystic-falls-loop',name:'Mystic Falls, Fairy Creek & Little Firehole Loop',region:'yellowstone',park:'Yellowstone National Park, WY',near:'Old Faithful',
+ lengthKm:6.3,gainM:200,highM:2320,difficulty:'Moderate',routeType:'Loop',durationMin:108,
+ rating:4.8,activities:['birding','hiking','trail-running'],features:['forest','kids','hot-springs','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A loop past a terraced waterfall and up to a plateau overlooking the entire Upper Geyser Basin steaming below.',endLabel:'Overlook plateau'},
+{id:'west-thumb',name:'West Thumb Geyser Basin Trail',region:'yellowstone',park:'Yellowstone National Park, WY',near:'West Thumb',
+ lengthKm:1.6,gainM:19,highM:2350,difficulty:'Easy',routeType:'Loop',durationMin:21,
+ rating:4.7,activities:['birding','hiking','walking'],features:['ada','beach','forest','lake','kids','hot-springs','views','wildlife','dogs-no','strollers'],
+ blurb:'A boardwalk loop of hot springs right on the shore of Yellowstone Lake — steam rising over blue water.',endLabel:'Yellowstone Lake shore'},
+{id:'storm-point-loop',name:'Storm Point Loop',region:'yellowstone',park:'Yellowstone National Park, WY',near:'Lake Village',
+ lengthKm:4.0,gainM:29,highM:2360,difficulty:'Easy',routeType:'Loop',durationMin:49,
+ rating:4.7,activities:['birding','hiking'],features:['beach','forest','lake','kids','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A quiet lakeshore and forest loop with good odds of bison and a rocky point over Yellowstone Lake.',endLabel:'Storm Point'},
+
+{id:'delta-lake',name:'Delta Lake via Lupine Meadows',region:'grandteton',park:'Grand Teton National Park, WY',near:'Jenny Lake',
+ lengthKm:12.2,gainM:700,highM:2650,difficulty:'Hard',routeType:'Out & back',durationMin:280,estDuration:true,
+ rating:4.8,activities:['hiking'],features:['forest','lake','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'An unmaintained but heavily-used boulder scramble to a glacial lake at the foot of the Grand Teton itself.',endLabel:'Delta Lake'},
+{id:'taggart-lake-loop',name:'Taggart Lake Loop',region:'grandteton',park:'Grand Teton National Park, WY',near:'Taggart Lake',
+ lengthKm:6.1,gainM:131,highM:2140,difficulty:'Easy',routeType:'Loop',durationMin:92,
+ rating:4.8,activities:['birding','cross-country-skiing','hiking','snowshoeing','trail-running','walking','horseback-riding','backpacking'],features:['forest','lake','river','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A gentle loop through an old burn area to a lake with a classic reflected view of the Teton skyline.',endLabel:'Taggart Lake'},
+{id:'cascade-canyon',name:'Cascade Canyon Trail',region:'grandteton',park:'Grand Teton National Park, WY',near:'Jenny Lake',
+ lengthKm:15.1,gainM:342,highM:2350,difficulty:'Moderate',routeType:'Out & back',durationMin:232,
+ rating:4.8,activities:['camping','hiking','backpacking'],features:['forest','lake','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A boat shuttle across Jenny Lake shortens this deep glacial-canyon walk beneath the Cathedral Group.',endLabel:'Cascade Canyon'},
+{id:'hidden-falls-jenny',name:'Hidden Falls via Jenny Lake Trail',region:'grandteton',park:'Grand Teton National Park, WY',near:'Jenny Lake',
+ lengthKm:8.2,gainM:185,highM:2140,difficulty:'Moderate',routeType:'Loop',durationMin:125,
+ rating:4.8,activities:['birding','camping','hiking','trail-running'],features:['forest','lake','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no','historic-site'],
+ blurb:'A lakeshore walk to a waterfall and Inspiration Point, with a boat shuttle option to skip the flat approach.',endLabel:'Hidden Falls'},
+{id:'jenny-lake-trail',name:'Jenny Lake Trail',region:'grandteton',park:'Grand Teton National Park, WY',near:'Jenny Lake',
+ lengthKm:11.7,gainM:148,highM:2070,difficulty:'Moderate',routeType:'Loop',durationMin:155,
+ rating:4.8,activities:['camping','hiking','snowshoeing'],features:['beach','forest','lake','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A full circuit of Jenny Lake with the Tetons rising directly from the far shore the entire way.',endLabel:'Jenny Lake'},
+{id:'string-lake-trail',name:'String Lake Trail',region:'grandteton',park:'Grand Teton National Park, WY',near:'String Lake',
+ lengthKm:6.0,gainM:80,highM:2080,difficulty:'Moderate',routeType:'Loop',durationMin:80,
+ rating:4.8,activities:['birding','hiking','trail-running'],features:['beach','forest','lake','kids','river','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A flat, family-friendly lake loop with a swimmable beach and views of Rockchuck Peak.',endLabel:'String Lake'},
+
+{id:'emerald-lake-rmnp',name:'Emerald Lake Trail',region:'rockymountain',park:'Rocky Mountain National Park, CO',near:'Bear Lake',
+ lengthKm:5.3,gainM:218,highM:3060,difficulty:'Moderate',routeType:'Out & back',durationMin:101,
+ rating:4.8,activities:['fishing','hiking','snowshoeing'],features:['forest','lake','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A chain of three alpine lakes — Nymph, Dream, then Emerald — beneath Hallett Peak and Flattop Mountain.',endLabel:'Emerald Lake'},
+{id:'sky-pond',name:'Sky Pond via Glacier Gorge Trail',region:'rockymountain',park:'Rocky Mountain National Park, CO',near:'Glacier Gorge',
+ lengthKm:14.5,gainM:538,highM:3330,difficulty:'Hard',routeType:'Out & back',durationMin:280,estDuration:true,
+ rating:4.9,activities:['camping','fishing','hiking','backpacking'],features:['forest','lake','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A waterfall scramble beside Timberline Falls leads to a glacial tarn ringed by the Cathedral Spires.',endLabel:'Sky Pond'},
+{id:'dream-lake',name:'Dream Lake Trail',region:'rockymountain',park:'Rocky Mountain National Park, CO',near:'Bear Lake',
+ lengthKm:3.2,gainM:140,highM:2920,difficulty:'Moderate',routeType:'Out & back',durationMin:63,
+ rating:4.8,activities:['fishing','hiking','snowshoeing'],features:['forest','lake','kids','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'One of the park\'s most photographed lakes, with Hallett Peak and Flattop Mountain reflected on calm mornings.',endLabel:'Dream Lake'},
+{id:'bear-lake-loop',name:'Bear Lake Loop',region:'rockymountain',park:'Rocky Mountain National Park, CO',near:'Bear Lake',
+ lengthKm:1.1,gainM:15,highM:2880,difficulty:'Easy',routeType:'Loop',durationMin:15,
+ rating:4.7,activities:['birding','hiking','trail-running'],features:['ada','forest','lake','kids','views','wildlife','dogs-no'],
+ blurb:'A flat, paved loop right at the trailhead — an easy taste of the high country for any fitness level.',endLabel:'Bear Lake'},
+{id:'alberta-falls',name:'Alberta Falls Trail',region:'rockymountain',park:'Rocky Mountain National Park, CO',near:'Glacier Gorge',
+ lengthKm:2.7,gainM:72,highM:2810,difficulty:'Easy',routeType:'Out & back',durationMin:44,
+ rating:4.8,activities:['hiking','snowshoeing','trail-running','horseback-riding'],features:['forest','kids','river','views','waterfall','wildlife','dogs-no'],
+ blurb:'A short, popular walk to a rushing cascade — the gateway trail to the deeper Glacier Gorge hikes.',endLabel:'Alberta Falls'},
+{id:'sprague-lake',name:'Sprague Lake Loop',region:'rockymountain',park:'Rocky Mountain National Park, CO',near:'Sprague Lake',
+ lengthKm:1.3,gainM:11,highM:2750,difficulty:'Easy',routeType:'Loop',durationMin:16,
+ rating:4.7,activities:['fishing','snowshoeing','walking','running'],features:['ada','forest','lake','kids','river','views','wildlife','dogs-no','strollers'],
+ blurb:'A fully accessible flat loop around a quiet lake with a view of the Continental Divide.',endLabel:'Sprague Lake'},
+
+{id:'avalanche-lake',name:'Avalanche Lake',region:'glacier',park:'Glacier National Park, MT',near:'Lake McDonald',
+ lengthKm:9.8,gainM:238,highM:1240,difficulty:'Moderate',routeType:'Out & back',durationMin:153,
+ rating:4.8,activities:['camping','hiking'],features:['ada','beach','forest','lake','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no','strollers'],
+ blurb:'A cedar-forest walk past a slot-canyon gorge to a cirque lake fed by waterfalls off the surrounding peaks.',endLabel:'Avalanche Lake'},
+{id:'grinnell-glacier',name:'Grinnell Glacier Trail',region:'glacier',park:'Glacier National Park, MT',near:'Many Glacier',
+ lengthKm:17.9,gainM:624,highM:2100,difficulty:'Hard',routeType:'Out & back',durationMin:319,
+ rating:4.9,activities:['fishing','hiking'],features:['forest','lake','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A long, spectacular climb past three turquoise lakes to the toe of a rapidly retreating glacier.',endLabel:'Grinnell Glacier overlook'},
+{id:'hidden-lake-overlook',name:'Hidden Lake Overlook',region:'glacier',park:'Glacier National Park, MT',near:'Logan Pass',
+ lengthKm:4.5,gainM:173,highM:2260,difficulty:'Moderate',routeType:'Out & back',durationMin:84,
+ rating:4.8,activities:['hiking'],features:['forest','lake','kids','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A boardwalk climb from Logan Pass through wildflower meadows to a cliff-edge view of Hidden Lake and Bearhat Mountain.',endLabel:'Hidden Lake overlook'},
+{id:'highline-trail',name:'Highline Trail',region:'glacier',park:'Glacier National Park, MT',near:'Logan Pass',
+ lengthKm:24.5,gainM:784,highM:2350,difficulty:'Hard',routeType:'Out & back',durationMin:423,
+ rating:4.8,activities:['camping','hiking','backpacking'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A famous ledge trail along the Garden Wall with a cable handhold section and constant Continental Divide views.',endLabel:'Granite Park'},
+{id:'trail-of-cedars',name:'Trail of the Cedars',region:'glacier',park:'Glacier National Park, MT',near:'Lake McDonald',
+ lengthKm:1.4,gainM:15,highM:970,difficulty:'Easy',routeType:'Loop',durationMin:18,
+ rating:4.7,activities:['camping','walking'],features:['ada','forest','kids','river','views','waterfall','wildlife','dogs-no','partially-paved','strollers'],
+ blurb:'A boardwalk loop through an old-growth cedar-hemlock grove, one of the few rainforest pockets east of the Cascades.',endLabel:'Cedar grove'},
+{id:'hidden-lake-trail',name:'Hidden Lake',region:'glacier',park:'Glacier National Park, MT',near:'Logan Pass',
+ lengthKm:8.4,gainM:410,highM:2320,difficulty:'Moderate',routeType:'Out & back',durationMin:174,
+ rating:4.8,activities:['hiking'],features:['forest','lake','kids','river','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'Continues past the overlook down to the lakeshore itself — mountain goats and bighorn sheep are common along the way.',endLabel:'Hidden Lake shore'},
+
+{id:'skyline-loop-rainier',name:'Skyline Loop',region:'rainier',park:'Mount Rainier National Park, WA',near:'Paradise',
+ lengthKm:9.2,gainM:543,highM:2195,difficulty:'Hard',routeType:'Loop',durationMin:230,estDuration:true,
+ rating:4.9,activities:['hiking'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'The classic Paradise loop, climbing through wildflower meadows toward Panorama Point with the summit looming above.',endLabel:'Panorama Point'},
+{id:'panorama-point',name:'Panorama Point via Skyline Trail',region:'rainier',park:'Mount Rainier National Park, WA',near:'Paradise',
+ lengthKm:6.1,gainM:405,highM:2130,difficulty:'Hard',routeType:'Out & back',durationMin:149,
+ rating:4.8,activities:['hiking','skiing','snowshoeing','running'],features:['forest','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A steady climb above treeline for a huge close-up view of Rainier\'s Nisqually Glacier.',endLabel:'Panorama Point'},
+{id:'myrtle-falls',name:'Myrtle Falls Viewpoint via Skyline Trail',region:'rainier',park:'Mount Rainier National Park, WA',near:'Paradise',
+ lengthKm:1.6,gainM:50,highM:1700,difficulty:'Moderate',routeType:'Out & back',durationMin:27,
+ rating:4.7,activities:['hiking','running'],features:['ada','forest','kids','views','waterfall','wild-flowers','wildlife','dogs-no','partially-paved','strollers'],
+ blurb:'A short paved walk from Paradise to a waterfall viewpoint framed by the mountain itself.',endLabel:'Myrtle Falls'},
+{id:'nisqually-vista',name:'Nisqually Vista Trail',region:'rainier',park:'Mount Rainier National Park, WA',near:'Paradise',
+ lengthKm:1.8,gainM:55,highM:1660,difficulty:'Easy',routeType:'Loop',durationMin:30,
+ rating:4.7,activities:['hiking','bike-touring','running'],features:['forest','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no','paved','strollers'],
+ blurb:'An easy paved loop with a glacier viewpoint — one of the best short walks for families at Paradise.',endLabel:'Nisqually Glacier viewpoint'},
+{id:'burroughs-mountain',name:'Burroughs Mountain Loop',region:'rainier',park:'Mount Rainier National Park, WA',near:'Sunrise',
+ lengthKm:15.4,gainM:797,highM:2286,difficulty:'Hard',routeType:'Loop',durationMin:330,
+ rating:4.9,activities:['camping','hiking','trail-running','backpacking'],features:['forest','lake','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A walk onto an arctic-tundra plateau closer to Rainier\'s glaciers than almost any other maintained trail.',endLabel:'Burroughs Mountain'},
+{id:'comet-falls',name:'Comet Falls via Van Trump Trail',region:'rainier',park:'Mount Rainier National Park, WA',near:'Longmire',
+ lengthKm:5.8,gainM:392,highM:1520,difficulty:'Hard',routeType:'Out & back',durationMin:143,
+ rating:4.8,activities:['hiking','trail-running'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A steep climb to one of the park\'s tallest waterfalls, a 100 m drop in two dramatic tiers.',endLabel:'Comet Falls'},
+
+{id:'hurricane-hill',name:'Hurricane Hill via Hurricane Ridge',region:'olympic',park:'Olympic National Park, WA',near:'Hurricane Ridge',
+ lengthKm:5.6,gainM:245,highM:1750,difficulty:'Moderate',routeType:'Out & back',durationMin:110,
+ rating:4.8,activities:['hiking','walking'],features:['ada','forest','kids','views','wild-flowers','wildlife','dogs-no','partially-paved','strollers'],
+ blurb:'A paved-then-dirt ridge walk above treeline with views to the Olympic peaks and, on clear days, Vancouver Island.',endLabel:'Hurricane Hill'},
+{id:'hall-of-mosses',name:'Hall of Mosses Trail',region:'olympic',park:'Olympic National Park, WA',near:'Hoh Rainforest',
+ lengthKm:1.8,gainM:25,highM:180,difficulty:'Easy',routeType:'Loop',durationMin:24,
+ rating:4.7,activities:['camping','hiking'],features:['forest','kids','river','views','wildlife','dogs-no','partially-paved'],
+ blurb:'A short loop through the Hoh Rainforest\'s most famous grove of moss-draped bigleaf maples.',endLabel:'Hall of Mosses'},
+{id:'sol-duc-falls',name:'Sol Duc Falls Trail',region:'olympic',park:'Olympic National Park, WA',near:'Sol Duc',
+ lengthKm:2.9,gainM:80,highM:520,difficulty:'Easy',routeType:'Out & back',durationMin:47,
+ rating:4.8,activities:['camping','hiking'],features:['forest','kids','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'An easy old-growth forest walk to a waterfall that splits into three channels through a narrow gorge.',endLabel:'Sol Duc Falls'},
+{id:'hoh-river-trail',name:'Hoh River Trail',region:'olympic',park:'Olympic National Park, WA',near:'Hoh Rainforest',
+ lengthKm:16.4,gainM:111,highM:250,difficulty:'Moderate',routeType:'Out & back',durationMin:196,
+ rating:4.7,activities:['camping','hiking','backpacking'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A long, nearly flat valley-bottom walk deep into temperate rainforest along the glacier-fed Hoh River.',endLabel:'Five Mile Island'},
+{id:'high-divide-loop',name:'High Divide & Seven Lakes Basin Loop',region:'olympic',park:'Olympic National Park, WA',near:'Sol Duc',
+ lengthKm:35.4,gainM:1889,highM:1750,difficulty:'Hard',routeType:'Loop',durationMin:771,
+ rating:4.8,activities:['camping','hiking','backpacking'],features:['forest','lake','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A big alpine loop with a close-up view of Mount Olympus and its glaciers — usually done as a two- or three-day backpack.',endLabel:'High Divide'},
+{id:'mount-angeles',name:'Mount Angeles via Hurricane Ridge Trail',region:'olympic',park:'Olympic National Park, WA',near:'Hurricane Ridge',
+ lengthKm:9.3,gainM:665,highM:2000,difficulty:'Strenuous',routeType:'Out & back',durationMin:280,estDuration:true,
+ rating:4.7,activities:['hiking','snowshoeing'],features:['forest','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A steep subalpine climb above Hurricane Ridge with wide views over the interior Olympic Mountains.',endLabel:'Mount Angeles'},
+
+{id:'alum-cave-leconte',name:'Alum Cave Trail to Mount LeConte',region:'smokies',park:'Great Smoky Mountains National Park, TN',near:'Newfound Gap Road',
+ lengthKm:18.0,gainM:932,highM:2010,difficulty:'Hard',routeType:'Out & back',durationMin:400,estDuration:true,
+ rating:4.8,activities:['camping','hiking','backpacking'],features:['cave','forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'The most popular route up the Smokies\' third-highest peak, passing under a huge rock overhang along the way.',endLabel:'Mount LeConte'},
+{id:'chimney-tops',name:'Chimney Tops Trail',region:'smokies',park:'Great Smoky Mountains National Park, TN',near:'Newfound Gap Road',
+ lengthKm:6.6,gainM:445,highM:1490,difficulty:'Hard',routeType:'Out & back',durationMin:150,estDuration:true,
+ rating:4.7,activities:['hiking'],features:['forest','river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A steep climb to twin rocky pinnacles with one of the best 360° views in the park.',endLabel:'Chimney Tops'},
+{id:'rainbow-falls-smokies',name:'Rainbow Falls Trail',region:'smokies',park:'Great Smoky Mountains National Park, TN',near:'Gatlinburg',
+ lengthKm:8.7,gainM:486,highM:1200,difficulty:'Moderate',routeType:'Out & back',durationMin:193,
+ rating:4.7,activities:['hiking'],features:['forest','river','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A steady climb beside a rushing creek to the tallest single-drop waterfall in the park at 24 m.',endLabel:'Rainbow Falls'},
+{id:'charlies-bunion',name:'Charlies Bunion via Appalachian Trail',region:'smokies',park:'Great Smoky Mountains National Park, TN',near:'Newfound Gap',
+ lengthKm:12.9,gainM:572,highM:1810,difficulty:'Moderate',routeType:'Out & back',durationMin:256,
+ rating:4.8,activities:['hiking'],features:['forest','views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A ridge walk on the Appalachian Trail to a rocky, exposed outcrop with a rare unobstructed Smokies view.',endLabel:'Charlies Bunion'},
+{id:'kuwohi-tower',name:'Kuwohi Observation Tower Trail',region:'smokies',park:'Great Smoky Mountains National Park, NC',near:'Kuwohi',
+ lengthKm:2.1,gainM:103,highM:2020,difficulty:'Moderate',routeType:'Out & back',durationMin:43,
+ rating:4.6,activities:['walking','running'],features:['kids','views','wild-flowers','wildlife','dogs-no','paved','strollers'],
+ blurb:'A paved climb to a spiral observation tower on the highest point in the Smokies, above 2,020 m.',endLabel:'Kuwohi tower'},
+{id:'gatlinburg-trail',name:'Gatlinburg Trail',region:'smokies',park:'Great Smoky Mountains National Park, TN',near:'Sugarlands',
+ lengthKm:6.3,gainM:54,highM:600,difficulty:'Easy',routeType:'Out & back',durationMin:78,
+ rating:4.5,activities:['hiking','mountain-biking','trail-running','walking'],features:['ada','dogs-leash','forest','kids','river','views','waterfall','wild-flowers','wildlife','strollers'],
+ blurb:'One of the only Smokies trails that allows dogs and bikes, an easy riverside walk between Gatlinburg and Sugarlands.',endLabel:'Sugarlands Visitor Center'},
+
+{id:'jordan-pond-path',name:'Jordan Pond Path',region:'acadia',park:'Acadia National Park, ME',near:'Jordan Pond',
+ lengthKm:5.3,gainM:18,highM:80,difficulty:'Easy',routeType:'Loop',durationMin:60,
+ rating:4.8,activities:['birding','hiking'],features:['dogs-leash','forest','lake','kids','views','wild-flowers','wildlife','partially-paved'],
+ blurb:'A flat, boardwalked loop around a glacial pond with the Bubbles framing the far shore — finish with popovers at the Jordan Pond House.',endLabel:'Jordan Pond House'},
+{id:'cadillac-north-ridge',name:'Cadillac North Ridge Trail',region:'acadia',park:'Acadia National Park, ME',near:'Cadillac Mountain',
+ lengthKm:6.8,gainM:347,highM:466,difficulty:'Moderate',routeType:'Out & back',durationMin:150,estDuration:true,
+ rating:4.8,activities:['hiking'],features:['dogs-leash','forest','river','views','wild-flowers','wildlife'],
+ blurb:'An open granite ridge climb to the highest point on the US Atlantic coast — among the first places to see sunrise in the country.',endLabel:'Cadillac Mountain summit'},
+{id:'the-bubbles',name:'The Bubbles',region:'acadia',park:'Acadia National Park, ME',near:'Jordan Pond',
+ lengthKm:2.6,gainM:150,highM:250,difficulty:'Moderate',routeType:'Out & back',durationMin:60,estDuration:true,
+ rating:4.8,activities:['hiking'],features:['dogs-leash','forest','lake','kids','views'],
+ blurb:'A short, steep climb to twin granite domes with a classic view straight down Jordan Pond.',endLabel:'South Bubble'},
+{id:'cadillac-summit-loop',name:'Cadillac Summit Loop Trail',region:'acadia',park:'Acadia National Park, ME',near:'Cadillac Mountain',
+ lengthKm:0.6,gainM:20,highM:466,difficulty:'Easy',routeType:'Loop',durationMin:11,
+ rating:4.8,activities:['birding','hiking','walking'],features:['ada','dogs-leash','kids','views','paved','strollers'],
+ blurb:'A paved summit loop at the top of Cadillac Mountain, accessible by car — sweeping views over Frenchman Bay.',endLabel:'Cadillac summit'},
+{id:'six-summits',name:'Six Summits Trail',region:'acadia',park:'Acadia National Park, ME',near:'Eagle Lake',
+ lengthKm:9.3,gainM:532,highM:410,difficulty:'Hard',routeType:'Loop',durationMin:200,estDuration:true,
+ rating:4.8,activities:['hiking'],features:['dogs-leash','forest','lake','views','waterfall','wildlife'],
+ blurb:'A ridge-hopping tour over six of Acadia\'s granite summits in one long day — one of the park\'s best workouts.',endLabel:'Sixth summit'},
+{id:'eagle-lake-carriage',name:'Eagle Lake Carriage Road Trail',region:'acadia',park:'Acadia National Park, ME',near:'Eagle Lake',
+ lengthKm:9.7,gainM:101,highM:82,difficulty:'Easy',routeType:'Loop',durationMin:123,
+ rating:4.8,activities:['hiking','mountain-biking','snowshoeing','trail-running'],features:['dogs-leash','forest','lake','kids','views','wildlife'],
+ blurb:'A flat, historic broken-stone carriage road looping the shore of Eagle Lake — popular for biking too.',endLabel:'Eagle Lake loop'},
+
+{id:'mount-washington-tuckerman',name:'Mount Washington via Tuckerman Ravine & Lion Head',region:'whitemountains',park:'White Mountain National Forest, NH',near:'Pinkham Notch',
+ lengthKm:12.7,gainM:1293,highM:1917,difficulty:'Hard',routeType:'Out & back',durationMin:400,estDuration:true,
+ rating:4.9,activities:['hiking'],features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'The classic route up the Northeast\'s highest and most notoriously wild-weathered peak, past a dramatic glacial ravine.',endLabel:'Mount Washington summit'},
+{id:'crystal-cascades',name:'Crystal Cascades',region:'whitemountains',park:'White Mountain National Forest, NH',near:'Pinkham Notch',
+ lengthKm:1.1,gainM:46,highM:650,difficulty:'Moderate',routeType:'Out & back',durationMin:21,
+ rating:4.8,activities:['hiking','snowshoeing'],features:['dogs-leash','forest','kids','river','views','waterfall','wildlife'],
+ blurb:'A short walk to a tiered waterfall right at the start of the Tuckerman Ravine approach.',endLabel:'Crystal Cascades'},
+{id:'lakes-of-clouds',name:'Lakes of the Clouds via Ammonoosuc Ravine',region:'whitemountains',park:'White Mountain National Forest, NH',near:'Base Station Road',
+ lengthKm:10.3,gainM:848,highM:1630,difficulty:'Hard',routeType:'Out & back',durationMin:280,estDuration:true,
+ rating:4.7,activities:['hiking','backpacking'],features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'A climb past cascading pools to the highest AMC hut in the Whites, tucked below the Mount Washington summit cone.',endLabel:'Lakes of the Clouds Hut'},
+{id:'glen-ellis-falls',name:'Glen Ellis Falls Trail',region:'whitemountains',park:'White Mountain National Forest, NH',near:'Pinkham Notch',
+ lengthKm:0.6,gainM:24,highM:600,difficulty:'Easy',routeType:'Out & back',durationMin:12,
+ rating:4.8,activities:['hiking'],features:['dogs-leash','forest','kids','river','views','waterfall','wildlife'],
+ blurb:'A short paved-and-stair descent to the base of a 21 m waterfall — one of the easiest big payoffs in the Whites.',endLabel:'Glen Ellis Falls'},
+{id:'mt-washington-monroe',name:'Mount Washington and Monroe via Ammonoosuc Ravine',region:'whitemountains',park:'White Mountain National Forest, NH',near:'Base Station Road',
+ lengthKm:16.1,gainM:1328,highM:1917,difficulty:'Hard',routeType:'Loop',durationMin:400,estDuration:true,
+ rating:4.8,activities:['hiking','backpacking'],features:['dogs','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'Bags two Presidential-range summits above treeline in one loop, with huts to break up the alpine traverse.',endLabel:'Mount Monroe'},
+{id:'hermit-lake',name:'Hermit Lake via Tuckerman Ravine Trail',region:'whitemountains',park:'White Mountain National Forest, NH',near:'Pinkham Notch',
+ lengthKm:7.7,gainM:564,highM:1330,difficulty:'Hard',routeType:'Out & back',durationMin:200,
+ rating:4.7,activities:['hiking','trail-running'],features:['dogs-leash','forest','lake','river','views','waterfall'],
+ blurb:'The approach to the floor of Tuckerman Ravine, a glacial cirque famous for late-season backcountry skiing.',endLabel:'Hermit Lake shelters'},
+
+{id:'south-river-falls-loop',name:'South River Falls Trail & Fire Road Loop',region:'shenandoah',park:'Shenandoah National Park, VA',near:'Skyline Drive',
+ lengthKm:5.3,gainM:266,highM:960,difficulty:'Moderate',routeType:'Loop',durationMin:113,
+ rating:4.7,activities:['birding','hiking'],features:['dogs-leash','forest','river','views','waterfall','wildlife'],
+ blurb:'A loop to the second-tallest waterfall in the park, dropping 25 m into a rocky pool below the escarpment.',endLabel:'South River Falls'},
+{id:'blackrock-summit',name:'Blackrock Summit via Trayfoot Mountain',region:'shenandoah',park:'Shenandoah National Park, VA',near:'Skyline Drive',
+ lengthKm:1.9,gainM:57,highM:1040,difficulty:'Easy',routeType:'Loop',durationMin:32,
+ rating:4.8,activities:['birding','hiking'],features:['dogs-leash','forest','kids','views','wildlife'],
+ blurb:'A short, nearly flat loop to a jumble of quartzite boulders with a wide Shenandoah Valley view.',endLabel:'Blackrock summit'},
+{id:'riprap-trail',name:'Riprap Trail',region:'shenandoah',park:'Shenandoah National Park, VA',near:'Riprap',
+ lengthKm:15.3,gainM:646,highM:1080,difficulty:'Hard',routeType:'Loop',durationMin:297,
+ rating:4.7,activities:['hiking'],features:['dogs-leash','forest','river','views','waterfall','wild-flowers','wildlife','historic-site'],
+ blurb:'A long loop combining rock-scramble ridgelines with a swimmable pool along Meadow Run.',endLabel:'Riprap swimming hole'},
+{id:'doyles-river-falls',name:'Doyles River Falls Trail',region:'shenandoah',park:'Shenandoah National Park, VA',near:'Skyline Drive',
+ lengthKm:5.6,gainM:363,highM:880,difficulty:'Hard',routeType:'Out & back',durationMin:137,
+ rating:4.6,activities:['hiking'],features:['dogs-leash','forest','river','waterfall','wildlife'],
+ blurb:'A steep descent to two waterfalls on the Doyles River — the climb back out is the real workout.',endLabel:'Upper Doyles River Falls'},
+{id:'frazier-discovery',name:'Frazier Discovery Trail',region:'shenandoah',park:'Shenandoah National Park, VA',near:'Loft Mountain',
+ lengthKm:2.3,gainM:136,highM:990,difficulty:'Moderate',routeType:'Loop',durationMin:52,
+ rating:4.6,activities:['hiking'],features:['forest','kids','views','wildlife','dogs-no'],
+ blurb:'A short interpretive loop near Loft Mountain with an open ledge view over the Shenandoah Valley.',endLabel:'Frazier Discovery overlook'},
+{id:'hightop-peak',name:'Hightop Peak Trail',region:'shenandoah',park:'Shenandoah National Park, VA',near:'Skyline Drive',
+ lengthKm:4.8,gainM:278,highM:1130,difficulty:'Moderate',routeType:'Out & back',durationMin:109,
+ rating:4.7,activities:['birding','hiking'],features:['dogs-leash','forest','views'],
+ blurb:'A forested climb on the Appalachian Trail to the highest peak in the park\'s southern district.',endLabel:'Hightop summit'},
+
+{id:'cascade-mountain-ny',name:'Cascade Mountain',region:'adirondacks',park:'High Peaks Wilderness, NY',near:'Route 73',
+ lengthKm:7.1,gainM:575,highM:1239,difficulty:'Hard',routeType:'Out & back',durationMin:220,estDuration:true,
+ rating:4.7,activities:['hiking','snowshoeing'],features:['dogs-leash','forest','views','wildlife'],
+ blurb:'The most-climbed of the 46 Adirondack High Peaks — a straightforward trail to an open-rock summit view.',endLabel:'Cascade Mountain summit'},
+{id:'mount-jo-loop',name:'Mount Jo Loop Trail',region:'adirondacks',park:'High Peaks Wilderness, NY',near:'Adirondak Loj',
+ lengthKm:4.0,gainM:219,highM:880,difficulty:'Moderate',routeType:'Loop',durationMin:90,estDuration:true,
+ rating:4.8,activities:['camping','hiking','snowshoeing'],features:['dogs-leash','forest','lake','views','wildlife'],
+ blurb:'A short, steep loop above Heart Lake with a summit view of the High Peaks — a good warm-up hike.',endLabel:'Mount Jo summit'},
+{id:'mount-marcy',name:'Mount Marcy via Van Hoevenberg Trail',region:'adirondacks',park:'High Peaks Wilderness, NY',near:'Adirondak Loj',
+ lengthKm:23.5,gainM:1075,highM:1629,difficulty:'Hard',routeType:'Out & back',durationMin:550,estDuration:true,
+ rating:4.7,activities:['camping','hiking','backpacking'],features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'The long haul to the highest point in New York State — a full-day undertaking above treeline at the summit.',endLabel:'Mount Marcy summit'},
+{id:'marcy-dam',name:'Marcy Dam Trail',region:'adirondacks',park:'High Peaks Wilderness, NY',near:'Adirondak Loj',
+ lengthKm:7.2,gainM:140,highM:750,difficulty:'Moderate',routeType:'Out & back',durationMin:106,
+ rating:4.6,activities:['camping','cross-country-skiing','hiking','snowshoeing'],features:['dogs-leash','forest','lake','river','views','wildlife'],
+ blurb:'An easy, well-traveled approach trail to a popular backcountry camping area with High Peaks views.',endLabel:'Marcy Dam'},
+{id:'algonquin-peak-ny',name:'Algonquin Peak & Wright Peak via Algonquin Trail',region:'adirondacks',park:'High Peaks Wilderness, NY',near:'Adirondak Loj',
+ lengthKm:14.0,gainM:1113,highM:1611,difficulty:'Hard',routeType:'Out & back',durationMin:350,estDuration:true,
+ rating:4.7,activities:['camping','hiking','backpacking'],features:['dogs-leash','forest','lake','river','views','waterfall','wild-flowers','wildlife'],
+ blurb:'The second-highest peak in the Adirondacks, a steep alpine-zone climb with a summit view rivaling Marcy\'s.',endLabel:'Algonquin Peak'},
+{id:'van-hoevenberg-east',name:'Mt. Van Hoevenberg East Trail',region:'adirondacks',park:'High Peaks Wilderness, NY',near:'Lake Placid',
+ lengthKm:6.1,gainM:297,highM:840,difficulty:'Moderate',routeType:'Out & back',durationMin:127,
+ rating:4.8,activities:['hiking','trail-running'],features:['dogs-leash','forest','views','wildlife'],
+ blurb:'A moderate climb near the Olympic bobsled track with a summit view over Lake Placid and the High Peaks.',endLabel:'Mt. Van Hoevenberg summit'},
+
+{id:'lost-mine-trail',name:'Lost Mine Trail',region:'bigbend',park:'Big Bend National Park, TX',near:'Chisos Basin',
+ lengthKm:7.7,gainM:349,highM:2210,difficulty:'Moderate',routeType:'Out & back',durationMin:154,
+ rating:4.9,activities:['hiking'],features:['views','wildlife','dogs-no'],
+ blurb:'One of the best view-to-effort ratios in Texas, climbing through pine-oak woodland to a ridge over Juniper Canyon.',endLabel:'Lost Mine Peak'},
+{id:'the-window-trail',name:'The Window Trail',region:'bigbend',park:'Big Bend National Park, TX',near:'Chisos Basin',
+ lengthKm:9.0,gainM:292,highM:1720,difficulty:'Moderate',routeType:'Out & back',durationMin:200,estDuration:true,
+ rating:4.8,activities:['camping','hiking'],features:['river','views','waterfall','wild-flowers','wildlife','dogs-no'],
+ blurb:'A descent through the Chisos basin to a narrow pour-off framing the desert far below — a classic sunset hike.',endLabel:'The Window'},
+{id:'emory-peak',name:'Emory Peak Trail',region:'bigbend',park:'Big Bend National Park, TX',near:'Chisos Basin',
+ lengthKm:16.3,gainM:755,highM:2385,difficulty:'Strenuous',routeType:'Out & back',durationMin:380,estDuration:true,
+ rating:4.9,activities:['camping','hiking','rock-climbing','backpacking'],features:['views','wild-flowers','wildlife','dogs-no'],
+ blurb:'A short scramble caps the climb to the highest point in the park, with a 360° desert-mountain panorama.',endLabel:'Emory Peak summit'},
+{id:'window-view-trail',name:'Window View Trail',region:'bigbend',park:'Big Bend National Park, TX',near:'Chisos Basin',
+ lengthKm:0.5,gainM:5,highM:1710,difficulty:'Easy',routeType:'Loop',durationMin:6,
+ rating:4.6,activities:['walking'],features:['ada','kids','views','wildlife','dogs-no','paved','strollers'],
+ blurb:'A flat, paved loop right at the Chisos Basin trailhead with a framed view straight through The Window.',endLabel:'Window viewpoint'},
+{id:'basin-loop-trail',name:'Basin Loop Trail',region:'bigbend',park:'Big Bend National Park, TX',near:'Chisos Basin',
+ lengthKm:3.1,gainM:89,highM:1740,difficulty:'Moderate',routeType:'Loop',durationMin:51,
+ rating:4.6,activities:['hiking'],features:['kids','views','wildlife','dogs-no'],
+ blurb:'A short loop around the rim of the Chisos Basin with views out through both the Window and Pulliam Ridge.',endLabel:'Basin rim'},
+{id:'south-rim-trail',name:'South Rim Trail Loop',region:'bigbend',park:'Big Bend National Park, TX',near:'Chisos Basin',
+ lengthKm:19.8,gainM:735,highM:2280,difficulty:'Hard',routeType:'Loop',durationMin:363,
+ rating:4.9,activities:['camping','hiking','backpacking'],features:['views','wildlife','dogs-no'],
+ blurb:'A full-day loop along a 610 m cliff edge above the desert floor — widely considered Texas\' best hike.',endLabel:'South Rim'},
+];
+function trailById(id){return TRAILS.find(t=>t.id===id);}
+function trailsInRegion(id){return TRAILS.filter(t=>t.region===id);}
+
+const ACTIVITY_LABEL = {hiking:'Hike','trail-running':'Trail run',walking:'Walk',running:'Run',birding:'Birding',
+  snowshoeing:'Snowshoe',camping:'Camping','horseback-riding':'Horseback',backpacking:'Backpacking'};
+const FEATURE_LABEL = {'dogs-leash':'Dogs on leash','dogs-no':'No dogs',dogs:'Dogs OK',forest:'Forest',lake:'Lake',river:'River',
+  views:'Views',waterfall:'Waterfall','wild-flowers':'Wildflowers',wildlife:'Wildlife','historic-site':'Historic site',
+  kids:'Kid friendly',cave:'Cave',ada:'ADA accessible',strollers:'Stroller friendly',paved:'Paved','partially-paved':'Partially paved'};
+
+/* ---------------------------------------------------------------- state */
+const LS_PREFIX='ridgeline:';
+function ld(k,d){try{const v=localStorage.getItem(LS_PREFIX+k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function sv(k,v){try{localStorage.setItem(LS_PREFIX+k,JSON.stringify(v));}catch(e){}}
+
+function defaultFilters(){return {q:'',region:'all',activities:[],difficulty:[],routeType:[],lenIdx:5,gainIdx:5,offlineOnly:false,dogsOk:false,kidsOk:false,readChips:[]};}
+const LEN_STEPS=[3,6,10,16,25,Infinity];
+const GAIN_STEPS=[150,300,600,900,1500,Infinity];
+
+const S = {
+  onboarded: ld('onboarded', false),
+  units: ld('units','km'),
+  saved: ld('saved', []),
+  downloaded: ld('downloaded', []),
+  storagePlan: ld('storagePlan', {detail:'standard', satellite:true, trails:true}),
+  autoUpdate: ld('autoUpdate', true),
+  wifiOnly: ld('wifiOnly', true),
+  activities: ld('activities', []),
+  displayName: ld('displayName', ''),
+  filters: defaultFilters(),
+  view: 'explore', params:{}, tab:'explore',
+  geo:{status:'idle', lat:null, lon:null, err:null},
+  record:{running:false,paused:false,startedAt:0,elapsedMs:0,distanceKm:0,gainM:0,path:[],lastAlt:null,trailId:null,timerId:null,watchId:null},
+  toast:null,
+};
+
+function persistCore(){sv('onboarded',S.onboarded);sv('units',S.units);sv('saved',S.saved);sv('downloaded',S.downloaded);
+  sv('storagePlan',S.storagePlan);sv('autoUpdate',S.autoUpdate);sv('wifiOnly',S.wifiOnly);sv('activities',S.activities);sv('displayName',S.displayName);}
+
+function nav(view, params){ S.view=view; S.params=params||{}; S.tab = ['explore','search','record','offline','profile'].includes(view)?view:S.tab; render(); const sc=document.querySelector('.screen'); if(sc) sc.scrollTop=0; }
+function showToast(msg, ic){ S.toast={msg,ic:ic||'checkCircle'}; render(); clearTimeout(showToast._t); showToast._t=setTimeout(()=>{S.toast=null;renderToastOnly();},2200); }
+function renderToastOnly(){ const el=document.getElementById('toastHost'); if(el) el.outerHTML = toastHtml(); }
+
+/* ---------------------------------------------------------------- units & format */
+function kmToUnit(km){ return S.units==='km'? km : km*0.621371; }
+function mToUnit(m){ return S.units==='km'? m : m*3.28084; }
+function fmtDist(km){ return S.units==='km' ? (km<10?km.toFixed(1):Math.round(km))+' km' : (kmToUnit(km)<10?kmToUnit(km).toFixed(1):Math.round(kmToUnit(km)))+' mi'; }
+function fmtElev(m){ return S.units==='km' ? Math.round(m)+' m' : Math.round(mToUnit(m))+' ft'; }
+function fmtDuration(min){ min=Math.round(min); const h=Math.floor(min/60), m=min%60; return h>0 ? (h+'h'+(m?' '+m+'m':'')) : (m+'m'); }
+function fmtClock(ms){ const s=Math.floor(ms/1000); const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;
+  return (h>0? String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
+function lenStepLabel(i){ return i>=LEN_STEPS.length-1 ? 'Any distance' : 'Under '+fmtDist(LEN_STEPS[i]); }
+function gainStepLabel(i){ return i>=GAIN_STEPS.length-1 ? 'Any gain' : 'Under '+fmtElev(GAIN_STEPS[i]); }
+function diffTagClass(d){ return d==='Easy'?'tag-easy':d==='Moderate'?'tag-moderate':d==='Hard'?'tag-hard':'tag-strenuous'; }
+
+function regionStorageMB(regionId){
+  const urls = regionTileUrls(regionOf(regionId), S.storagePlan.detail==='full');
+  return Math.max(1, Math.round(urls.length*20/1024)); // ~20KB per real OSM tile
+}
+function totalStorageMB(){ return S.downloaded.reduce((sum,id)=>sum+regionStorageMB(id),0); }
+
+/* ---------------------------------------------------------------- filters */
+function matchesFilters(t, f){
+  if(f.region!=='all' && t.region!==f.region) return false;
+  if(f.offlineOnly && !S.downloaded.includes(t.region)) return false;
+  if(f.difficulty.length && !f.difficulty.includes(t.difficulty)) return false;
+  if(f.routeType.length && !f.routeType.includes(t.routeType)) return false;
+  if(f.activities.length && !f.activities.some(a=>t.activities.includes(a))) return false;
+  if(f.dogsOk && !(t.features.includes('dogs-leash')||t.features.includes('dogs'))) return false;
+  if(f.kidsOk && !t.features.includes('kids')) return false;
+  if(LEN_STEPS[f.lenIdx]!==Infinity && t.lengthKm > LEN_STEPS[f.lenIdx]) return false;
+  if(GAIN_STEPS[f.gainIdx]!==Infinity && t.gainM > GAIN_STEPS[f.gainIdx]) return false;
+  if(f.q){
+    const q=f.q.toLowerCase();
+    const hay=(t.name+' '+t.park+' '+t.near+' '+t.blurb+' '+t.activities.join(' ')+' '+t.features.join(' ')).toLowerCase();
+    if(!hay.includes(q)){
+      const words=q.split(/\s+/).filter(w=>w.length>2 && !['the','and','for','big','under','near','trails','trail','with'].includes(w));
+      if(words.length && !words.some(w=>hay.includes(w))) return false;
+    }
+  }
+  return true;
+}
+function filteredTrails(f){ return TRAILS.filter(t=>matchesFilters(t,f)); }
+function activeFilterCount(f){
+  let n=0; if(f.region!=='all')n++; n+=f.difficulty.length; n+=f.routeType.length; n+=f.activities.length;
+  if(f.dogsOk)n++; if(f.kidsOk)n++; if(f.offlineOnly)n++; if(LEN_STEPS[f.lenIdx]!==Infinity)n++; if(GAIN_STEPS[f.gainIdx]!==Infinity)n++;
+  return n;
+}
+function parseQuery(q){
+  const f = Object.assign({}, S.filters); f.q=q; const chips=[];
+  const s=q.toLowerCase();
+  if(/waterfall/.test(s)) chips.push({icon:'route',label:'Waterfall'});
+  if(/\bview|views|scenic\b/.test(s)) chips.push({icon:'mapPin',label:'Big views'});
+  if(/dog/.test(s)){ f.dogsOk=true; chips.push({icon:'checkCircle',label:'Dog friendly'}); }
+  if(/kid|family/.test(s)){ f.kidsOk=true; chips.push({icon:'checkCircle',label:'Kid friendly'}); }
+  if(/loop/.test(s)){ f.routeType=['Loop']; chips.push({icon:'route',label:'Loop'}); }
+  if(/easy/.test(s)){ f.difficulty=['Easy']; chips.push({icon:'gauge',label:'Easy'}); }
+  else if(/strenuous|very hard/.test(s)){ f.difficulty=['Strenuous']; chips.push({icon:'gauge',label:'Strenuous'}); }
+  else if(/hard|challenging/.test(s)){ f.difficulty=['Hard']; chips.push({icon:'gauge',label:'Hard'}); }
+  else if(/moderate/.test(s)){ f.difficulty=['Moderate']; chips.push({icon:'gauge',label:'Moderate'}); }
+  const under = s.match(/under\s+(\d+)\s?(km|mi|mile)/);
+  if(under){ let km=parseFloat(under[1]); if(/mi/.test(under[2])) km*=1.60934;
+    let idx=LEN_STEPS.findIndex(v=>v>=km); if(idx<0) idx=LEN_STEPS.length-1; f.lenIdx=idx;
+    chips.push({icon:'route',label:'Under '+under[1]+' '+(under[2][0]==='k'?'km':'mi')}); }
+  REGIONS.forEach(r=>{ const key=r.name.split('&')[0].trim().toLowerCase();
+    if(s.includes(key.split(' ')[0]) || s.includes(r.id)){ f.region=r.id; chips.push({icon:'mapPin',label:r.name}); } });
+  f.readChips = chips;
+  return f;
+}
+
+/* ---------------------------------------------------------------- geolocation */
+function haversineKm(lat1,lon1,lat2,lon2){
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function requestLocationOnce(){
+  if(!navigator.geolocation){ S.geo.status='unsupported'; render(); return; }
+  S.geo.status='locating'; render();
+  navigator.geolocation.getCurrentPosition(
+    pos=>{ S.geo.status='ok'; S.geo.lat=pos.coords.latitude; S.geo.lon=pos.coords.longitude; render(); },
+    err=>{ S.geo.status='denied'; S.geo.err=err.message; render(); },
+    {enableHighAccuracy:false, timeout:8000, maximumAge:60000}
+  );
+}
+function nearestRegion(){
+  if(S.geo.status!=='ok') return null;
+  let best=null,bd=Infinity;
+  REGIONS.forEach(r=>{ const d=haversineKm(S.geo.lat,S.geo.lon,r.lat,r.lon); if(d<bd){bd=d;best=r;} });
+  return {region:best, km:bd};
+}
+
+/* ---------------------------------------------------------------- recording */
+function startRecording(trailId){
+  const rec=S.record;
+  rec.running=true; rec.paused=false; rec.startedAt=Date.now(); rec.elapsedMs=0;
+  rec.distanceKm=0; rec.gainM=0; rec.path=[]; rec.lastAlt=null; rec.trailId=trailId||null;
+  clearInterval(rec.timerId);
+  rec.timerId=setInterval(()=>{ if(!rec.paused){ rec.elapsedMs=Date.now()-rec.startedAt-((rec._pausedMs)||0); tickRecordUI(); } },1000);
+  if(navigator.geolocation){
+    try{
+      rec.watchId=navigator.geolocation.watchPosition(onGeoTick, onGeoErr, {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+      rec.gpsState='locating';
+    }catch(e){ rec.gpsState='unavailable'; }
+  } else { rec.gpsState='unavailable'; }
+  render();
+}
+function onGeoTick(pos){
+  const rec=S.record; if(!rec.running||rec.paused) return;
+  const {latitude,longitude,altitude}=pos.coords;
+  rec.gpsState='live';
+  if(rec.path.length){
+    const last=rec.path[rec.path.length-1];
+    const d=haversineKm(last.lat,last.lon,latitude,longitude);
+    if(d<0.5) rec.distanceKm += d; // reject obvious GPS jump artifacts
+    if(altitude!=null && rec.lastAlt!=null){ const dz=altitude-rec.lastAlt; if(dz>1 && dz<50) rec.gainM+=dz; }
+  }
+  if(altitude!=null) rec.lastAlt=altitude;
+  rec.path.push({lat:latitude,lon:longitude,t:Date.now()});
+  tickRecordUI();
+}
+function onGeoErr(err){ S.record.gpsState = err.code===1?'denied':'error'; tickRecordUI(); }
+function pauseRecording(){ const rec=S.record; if(rec.paused){ rec._pauseStart=null; } else { rec._pauseStart=Date.now(); }
+  rec.paused=!rec.paused;
+  if(!rec.paused && rec._pauseStart){ rec._pausedMs=(rec._pausedMs||0)+(Date.now()-rec._pauseStart); }
+  render(); }
+function stopRecording(save){
+  const rec=S.record;
+  clearInterval(rec.timerId);
+  if(rec.watchId!=null && navigator.geolocation) navigator.geolocation.clearWatch(rec.watchId);
+  if(save && rec.elapsedMs>2000){
+    const act={ id:'a'+Date.now(), date:new Date().toISOString(), trailId:rec.trailId,
+      name: rec.trailId? trailById(rec.trailId).name : 'Untitled activity',
+      distanceKm: Math.round(rec.distanceKm*100)/100, gainM: Math.round(rec.gainM),
+      durationSec: Math.round(rec.elapsedMs/1000), gps: rec.path.length>1 };
+    S.activities.unshift(act); persistCore();
+    showToast('Activity saved to your profile','checkCircle');
+  }
+  rec.running=false; rec.paused=false; rec.path=[]; rec.trailId=null; rec.gpsState=null;
+  if(recLeaflet){ try{recLeaflet.remove();}catch(e){} recLeaflet=null; recPolyline=null; recMarker=null; recStartMarker=null; }
+  render();
+}
+function tickRecordUI(){
+  const t=document.getElementById('recTimer'); if(t) t.textContent=fmtClock(S.record.elapsedMs);
+  const d=document.getElementById('recDist'); if(d) d.textContent=fmtDist(S.record.distanceKm);
+  const g=document.getElementById('recGain'); if(g) g.textContent=fmtElev(S.record.gainM);
+  const gs=document.getElementById('recGpsState'); if(gs) gs.textContent=gpsStateLabel();
+  const pc=document.getElementById('recPace');
+  if(pc){ const hrs=S.record.elapsedMs/3600000; const paceMinKm = S.record.distanceKm>0.05 ? (S.record.elapsedMs/60000)/S.record.distanceKm : 0;
+    pc.textContent = paceMinKm>0 ? fmtPace(paceMinKm) : '—'; }
+  updateRecordMap();
+}
+function fmtPace(minPerKm){
+  const v = S.units==='km'? minPerKm : minPerKm*1.60934;
+  const m=Math.floor(v), s=Math.round((v-m)*60);
+  return m+':'+String(s).padStart(2,'0')+' /'+(S.units==='km'?'km':'mi');
+}
+let recLeaflet=null, recPolyline=null, recMarker=null, recStartMarker=null;
+function recordMapHtml(){
+  const rec=S.record;
+  return '<div id="recordMapWrap" style="height:190px;border-radius:16px;overflow:hidden;position:relative">'+
+    '<div id="leafletRecord" style="width:100%;height:100%;background:#191b28"></div>'+
+    '<div id="recordMapEmpty" style="position:absolute;inset:0;display:'+(rec.path.length?'none':'flex')+';align-items:center;justify-content:center;text-align:center;padding:0 30px;pointer-events:none">'+
+      (navigator.geolocation? '<span class="sub">Finding your position…</span>' : '<span class="sub">'+icon('warning',18)+'<br>No GPS on this device</span>')+
+    '</div>'+
+  '</div>';
+}
+function wireRecordMap(){
+  const el=document.getElementById('leafletRecord');
+  if(!el || typeof L==='undefined') return;
+  if(recLeaflet){ try{recLeaflet.remove();}catch(e){} recLeaflet=null; recPolyline=null; recMarker=null; recStartMarker=null; }
+  const path=S.record.path;
+  const center = path.length? [path[path.length-1].lat, path[path.length-1].lon] : (S.geo.status==='ok'?[S.geo.lat,S.geo.lon]:[45,-97]);
+  recLeaflet = L.map(el, {zoomControl:false, attributionControl:true}).setView(center, path.length?16:4);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'&copy; OpenStreetMap'}).addTo(recLeaflet);
+  if(path.length) updateRecordMap();
+}
+function updateRecordMap(){
+  if(!recLeaflet || typeof L==='undefined') return;
+  const path=S.record.path; if(!path.length) return;
+  const empty=document.getElementById('recordMapEmpty'); if(empty) empty.style.display='none';
+  const latlngs=path.map(p=>[p.lat,p.lon]);
+  if(!recPolyline) recPolyline=L.polyline(latlngs,{color:'#c0b6fb',weight:4}).addTo(recLeaflet);
+  else recPolyline.setLatLngs(latlngs);
+  if(!recStartMarker) recStartMarker=L.circleMarker(latlngs[0],{radius:5,color:'#c0b6fb',weight:2,fillColor:'#14151f',fillOpacity:1}).addTo(recLeaflet);
+  const last=latlngs[latlngs.length-1];
+  if(!recMarker) recMarker=L.circleMarker(last,{radius:7,color:'#fff',weight:2,fillColor:'#e28a78',fillOpacity:1}).addTo(recLeaflet);
+  else recMarker.setLatLng(last);
+  recLeaflet.panTo(last,{animate:true});
+}
+function gpsStateLabel(){
+  const g=S.record.gpsState;
+  if(g==='live') return 'GPS locked';
+  if(g==='locating') return 'Finding GPS…';
+  if(g==='denied') return 'Location denied — timer only';
+  if(g==='unavailable') return 'No GPS on this device — timer only';
+  if(g==='error') return 'GPS signal lost';
+  return 'Waiting for GPS…';
+}
+
+/* ---------------------------------------------------------------- community (db capability) */
+let DB=null, communityUnsub=null, communityDocs=[];
+function initDb(){
+  if(!(window.claude && window.claude.use)) return;
+  window.claude.use('db').then(d=>{
+    DB=d;
+    if(DB && S.view==='community') subscribeCommunity();
+  }).catch(()=>{});
+}
+function subscribeCommunity(){
+  if(!DB || communityUnsub) return;
+  try{
+    communityUnsub = DB.collection('reports').orderBy('ts','desc').limit(30).onSnapshot(
+      snap=>{ communityDocs = snap.docs.map(d=>Object.assign({_id:d.id}, d.data())); if(S.view==='community') renderCommunityList(); },
+      err=>{ /* degrade silently */ }
+    );
+  }catch(e){}
+}
+function postReport(trailId, tag, note){
+  const name = (S.displayName||'').trim() || 'A hiker';
+  const body = { trailId: trailId||null, trailName: trailId? trailById(trailId).name : null,
+    tag: tag, note: (note||'').slice(0,400), author: name, ts: Date.now() };
+  if(DB){
+    DB.collection('reports').add(body).then(()=>{ showToast('Report posted','checkCircle'); }).catch(()=>{ showToast('Could not post — try again','warning'); });
+  } else {
+    const local = ld('localReports', []);
+    body._id = 'local'+Date.now(); local.unshift(body); sv('localReports', local); communityDocs = local.concat(communityDocs);
+    showToast('Saved on this device','checkCircle'); renderCommunityList();
+  }
+}
+function renderCommunityList(){
+  const el=document.getElementById('communityList'); if(el) el.innerHTML = communityListHtml();
+}
+
+/* ================================================================== VIEWS */
+function render(){
+  const root=document.getElementById('root');
+  if(!S.onboarded){ root.innerHTML = onboardingView(); return; }
+  const showTabs = ['explore','search','searchResults','record','offline','profile'].includes(S.view) && !(S.view==='record' && S.record.running);
+  root.innerHTML = (showTabs? tabbarHtml() : '') + viewFor(S.view) + toastHtml();
+  if(S.view==='community') { initDb(); subscribeCommunity(); }
+  if(S.view==='explore') wireMapInteraction();
+  if(S.view==='record' && S.record.running) wireRecordMap();
+}
+function viewFor(v){
+  switch(v){
+    case 'explore': return exploreView();
+    case 'search': return searchView();
+    case 'searchResults': return resultsView();
+    case 'settingsSheet': return resultsView() + settingsSheet();
+    case 'trail': return trailView(S.params.id);
+    case 'download': return downloadView(S.params.id);
+    case 'record': return recordView();
+    case 'offline': return offlineView();
+    case 'profile': return profileView();
+    case 'saved': return savedView();
+    case 'community': return communityView();
+    case 'about': return aboutView();
+    default: return exploreView();
+  }
+}
+function toastHtml(){ if(!S.toast) return '<div id="toastHost"></div>';
+  return '<div id="toastHost"><div class="toast">'+icon(S.toast.ic,17)+'<span>'+esc(S.toast.msg)+'</span></div></div>'; }
+
+function tabbarHtml(){
+  const tabs=[
+    {id:'explore',label:'Explore',ic:'mapFill',icOff:'map'},
+    {id:'search',label:'Search',ic:'search',icOff:'search'},
+    {id:'record',label:'Record',ic:'dot',icOff:'dot'},
+    {id:'offline',label:'Offline',ic:'download',icOff:'download'},
+    {id:'profile',label:'You',icOff:'user',ic:'user'},
+  ];
+  return '<div class="tabbar">'+tabs.map(t=>{
+    const active = S.tab===t.id;
+    return '<button class="tab '+(active?'active':'')+'" onclick="R.nav(\''+(t.id==='search'?'search':t.id)+'\')">'+
+      icon(active?t.ic:t.icOff,21)+'<span>'+t.label+'</span></button>';
+  }).join('')+'</div>';
+}
+
+/* ---- Onboarding (1a) ---- */
+function onboardingView(){
+  const step = S.params.step||0;
+  const regionPick = S.params.region || null;
+  if(step===0){
+    return '<div class="screen no-tab px" style="padding-top:calc(var(--safe-t) + 60px);display:flex;flex-direction:column;min-height:100vh">'+
+      '<div class="row gap10">'+icon('mountainFill',30)+'<span style="font:600 19px var(--font-ui);letter-spacing:-.01em">Ridgeline</span></div>'+
+      '<h2 style="font-size:32px;line-height:1.12;margin-top:30px;max-width:320px">Take the whole mountain with you.</h2>'+
+      '<p class="sub" style="margin-top:12px;max-width:320px">Real trail data for Banff, the North Shore, Zion and the Grand Canyon — downloaded so it works with the signal off. Record hikes with your phone\'s GPS, and keep every stat afterward.</p>'+
+      '<div style="flex:1"></div>'+
+      '<div class="card card-pad" style="margin-bottom:14px">'+
+        featureRow('mapPin','Real trail data','24 named trails, sourced from AllTrails — distance, elevation and difficulty are accurate.')+
+        '<div class="divider-h" style="margin:12px 0"></div>'+
+        featureRow('crosshair','GPS recording','Uses your phone\'s location while the app is open to track pace, distance and climb.')+
+      '</div>'+
+      '<button class="btn btn-primary btn-block" onclick="R.onboardStep(1)">Continue</button>'+
+      '<div style="height:6px"></div>'+
+    '</div>';
+  }
+  return '<div class="screen no-tab px" style="padding-top:calc(var(--safe-t) + 40px)">'+
+    '<button class="iconbtn ghost" style="margin-left:-10px" onclick="R.onboardStep(0)">'+icon('chevronLeft',20)+'</button>'+
+    '<div class="section-label" style="margin-top:18px">Pick your first region</div>'+
+    '<h2 style="font-size:24px;margin-top:8px">Where do you hike?</h2>'+
+    '<p class="sub" style="margin-top:8px">Downloads that region\'s trail data for offline use. You can add the others anytime from Offline.</p>'+
+    '<div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">'+
+    REGIONS.map(r=>{
+      const on = regionPick===r.id;
+      return '<div class="card card-pad row gap12" style="cursor:pointer" onclick="R.onboardPickRegion(\''+r.id+'\')">'+
+        icon('mapPin',20)+'<div style="flex:1"><div style="font-size:14px;font-weight:600">'+r.name+'</div><div class="sub" style="margin-top:2px">'+r.sub+' · '+trailsInRegion(r.id).length+' trails</div></div>'+
+        (on? icon('checkCircleFill',20):'<span style="width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--border)"></span>')+
+      '</div>';
+    }).join('')+
+    '</div>'+
+    '<div style="height:26px"></div>'+
+    '<button class="btn btn-primary btn-block" '+(regionPick?'':'disabled')+' onclick="R.finishOnboarding()">Download & continue</button>'+
+    '<div style="text-align:center;margin-top:10px"><button class="btn-ghost btn" onclick="R.finishOnboarding(true)">Not now</button></div>'+
+  '</div>';
+}
+function featureRow(ic,title,sub){ return '<div class="row gap12"><div style="color:var(--accent-2)">'+icon(ic,20)+'</div><div><div style="font-size:13.5px;font-weight:600">'+title+'</div><div class="sub" style="margin-top:2px">'+sub+'</div></div></div>'; }
+
+/* ---- Explore (1b) ---- */
+function exploreView(){
+  const near = nearestRegion();
+  const featured = TRAILS.slice().sort((a,b)=>b.rating-a.rating).slice(0,6);
+  return '<div class="screen">'+
+    '<div class="appbar"><div style="flex:1"><h1>Explore</h1></div>'+
+      '<button class="iconbtn" onclick="R.nav(\'community\')">'+icon('moon',18)+'</button>'+
+    '</div>'+
+    '<div class="px" style="margin-top:2px">'+
+      '<div class="row gap10 card" style="padding:11px 14px;cursor:text" onclick="R.nav(\'search\')">'+
+        icon('search',18)+'<span class="muted" style="flex:1;font-size:13.5px">Search trails — “big views under 15 km”</span>'+icon('mic',18)+
+      '</div>'+
+    '</div>'+
+    '<div class="px" style="margin-top:14px">'+countryMapHtml(260)+
+      '<div class="row gap8" style="margin-top:10px">'+
+        (S.geo.status==='ok' && near ? '<div class="row gap6" style="padding:7px 11px;border-radius:20px;background:var(--accent-fill);color:#f2f0ff;font-size:11.5px"><span class="livedot" style="width:8px;height:8px;box-shadow:none"></span>'+Math.round(near.km)+' km from '+near.region.name.split('&')[0].trim()+'</div>' :
+        '<button class="chip" onclick="R.locate()">'+icon('crosshair',14)+(S.geo.status==='locating'?'Locating…':S.geo.status==='denied'?'Location off':'Show my location')+'</button>')+
+      '</div>'+
+    '</div>'+
+    '<div class="px row between" style="margin-top:22px">'+
+      '<div class="section-label">Your regions</div>'+
+      '<button class="btn-ghost btn" style="min-height:auto;padding:0;font-size:12px" onclick="R.nav(\'offline\')">Manage</button>'+
+    '</div>'+
+    '<div class="px" style="display:flex;gap:11px;overflow-x:auto;margin-top:10px;padding-bottom:4px">'+
+      REGIONS.map(r=>{
+        const dl=S.downloaded.includes(r.id);
+        return '<div class="card" style="flex:none;width:190px;padding:13px;cursor:pointer" onclick="R.openRegion(\''+r.id+'\')">'+
+        '<div class="row between"><span style="font-size:13px;font-weight:600;line-height:1.3">'+r.name+'</span></div>'+
+        '<div class="sub" style="margin-top:4px">'+trailsInRegion(r.id).length+' trails</div>'+
+        '<div class="row gap6" style="margin-top:10px;font-size:11px;color:'+(dl?'var(--good)':'var(--text-4)')+'">'+
+          icon(dl?'checkCircle':'cloudOff',13)+(dl?'Offline ready':'Not downloaded')+'</div>'+
+        '</div>';
+      }).join('')+
+    '</div>'+
+    '<div class="px row between" style="margin-top:22px">'+
+      '<div class="section-label">Top rated near you</div>'+
+    '</div>'+
+    '<div class="px" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">'+
+      featured.map(t=>trailCardHtml(t)).join('')+
+    '</div>'+
+  '</div>';
+}
+let countryLeaflet=null;
+const mapViewState = {center:[45,-97], zoom:4};
+function countryMapHtml(height){
+  return '<div id="countryMapWrap" style="height:'+height+'px;border-radius:18px;overflow:hidden;position:relative">'+
+    '<div id="leafletCountry" style="width:100%;height:100%;background:#191b28"></div>'+
+    (typeof L==='undefined'? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center" class="sub">Map failed to load — check your connection</div>' : '')+
+  '</div>';
+}
+function wireMapInteraction(){
+  const el=document.getElementById('leafletCountry');
+  if(!el || typeof L==='undefined') return;
+  if(countryLeaflet){ try{countryLeaflet.remove();}catch(e){} countryLeaflet=null; }
+  countryLeaflet = L.map(el, {attributionControl:true}).setView(mapViewState.center, mapViewState.zoom);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:17, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+  }).addTo(countryLeaflet);
+  countryLeaflet.on('moveend zoomend', ()=>{
+    const c=countryLeaflet.getCenter(); mapViewState.center=[c.lat,c.lng]; mapViewState.zoom=countryLeaflet.getZoom();
+  });
+  const regionMax = Math.max(...REGIONS.map(r=>trailsInRegion(r.id).length));
+  REGIONS.forEach(r=>{
+    const n=trailsInRegion(r.id).length, dl=S.downloaded.includes(r.id);
+    const marker=L.circleMarker([r.lat,r.lon], {
+      radius: 5+(n/regionMax)*4, color:'#0b0c14', weight:1.5,
+      fillColor: dl?'#7fcf9f':'#c0b6fb', fillOpacity:0.92
+    }).addTo(countryLeaflet);
+    marker.bindPopup('<b>'+esc(r.name)+'</b><br>'+n+' trails'+(dl?' · offline ready':'')+'<br><a href="#" data-rid="'+r.id+'" class="popup-go">View trails →</a>');
+    marker.on('popupopen', e=>{
+      const a=e.popup.getElement().querySelector('.popup-go');
+      if(a) a.onclick=(ev)=>{ ev.preventDefault(); R.openRegion(r.id); };
+    });
+  });
+  if(S.geo.status==='ok'){
+    L.circleMarker([S.geo.lat,S.geo.lon], {radius:7,color:'#fff',weight:2,fillColor:'#e28a78',fillOpacity:0.95}).addTo(countryLeaflet).bindPopup('You are here');
+  }
+}
+function trailCardHtml(t){
+  const dl = S.downloaded.includes(t.region);
+  const saved = S.saved.includes(t.id);
+  return '<div class="trailcard" style="cursor:pointer" onclick="R.openTrail(\''+t.id+'\')">'+
+    '<div class="avatarph thumb"><span>trail photo</span>'+(dl?'<span style="position:absolute;bottom:5px;right:5px;color:var(--accent-2)">'+icon('cloud',13)+'</span>':'')+'</div>'+
+    '<div style="flex:1;min-width:0">'+
+      '<div class="row between" style="gap:6px"><span class="name">'+esc(t.name)+'</span></div>'+
+      '<div class="meta">'+esc(t.park)+'</div>'+
+      '<div class="row gap6" style="margin-top:6px"><span class="tag '+diffTagClass(t.difficulty)+'">'+t.difficulty+'</span>'+
+        '<span class="row gap6" style="font-size:11.5px;color:var(--text-3)">'+icon('starFill',11)+t.rating.toFixed(1)+'</span></div>'+
+      '<div class="stats">'+'<span>'+fmtDist(t.lengthKm)+'</span><span>'+fmtElev(t.gainM)+'</span><span>'+(t.estDuration?'~':'')+fmtDuration(t.durationMin)+'</span></div>'+
+    '</div>'+
+    '<button class="iconbtn ghost" style="align-self:flex-start;color:'+(saved?'var(--accent-2)':'var(--text-3)')+'" onclick="event.stopPropagation();R.toggleSaved(\''+t.id+'\')">'+icon(saved?'bookmarkFill':'bookmark',18)+'</button>'+
+  '</div>';
+}
+
+/* ---- Search (1c) ---- */
+function searchView(){
+  const f = S.filters;
+  const groups = searchGroups(f.q);
+  return '<div class="screen">'+
+    '<div class="appbar solid">'+
+      '<button class="iconbtn ghost" style="margin-left:-8px" onclick="R.nav(\'explore\')">'+icon('chevronLeft',20)+'</button>'+
+      '<h1 style="font-size:17px">Search</h1>'+
+    '</div>'+
+    '<div class="px" style="margin-top:6px">'+
+      '<div class="row gap10 card" style="padding:11px 13px;box-shadow:inset 0 0 0 1px var(--accent)">'+icon('search',18)+
+        '<input id="searchInput" class="textinput" style="background:none;box-shadow:none;padding:0;flex:1" placeholder="Ask for a trail — “waterfall loop under 8 km”" value="'+esc(f.q)+'" oninput="R.onSearchInput(this.value)" onkeydown="if(event.key===\'Enter\')R.runSearch()">'+
+        icon('mic',18)+
+      '</div>'+
+      (f.readChips && f.readChips.length ? '<div class="row gap6 wrap" style="margin-top:10px"><span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-4)">Read as</span>'+
+        f.readChips.map(c=>'<span class="row gap6" style="padding:4px 9px;border-radius:7px;background:var(--accent-fill);color:#f2f0ff;font-size:11.5px">'+icon(c.icon,12)+c.label+'</span>').join('')+'</div>' : '')+
+    '</div>'+
+    '<div class="px row between" style="margin-top:16px">'+
+      '<span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2)">Search downloaded maps only</span>'+
+      toggleHtml(f.offlineOnly,'R.toggleOfflineOnly()')+
+    '</div>'+
+    '<div class="px" style="margin-top:8px">'+
+    groups.map(g=>'<div style="margin-top:16px">'+
+      '<div class="row gap6" style="margin-bottom:8px">'+icon(g.icon,14)+'<span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)">'+g.title+'</span></div>'+
+      g.items.map(it=>'<div class="row gap10" style="padding:9px 2px;border-bottom:1px solid var(--border-soft);cursor:pointer" onclick="'+it.onclick+'">'+
+        icon(it.icon,17)+'<div style="flex:1;min-width:0"><div style="font-size:13px">'+it.name+'</div><div class="sub">'+it.sub+'</div></div>'+
+        '<span style="font-size:10.5px;color:var(--accent-2)">'+it.badge+'</span></div>').join('')+
+    '</div>').join('')+
+    (f.q ? '<button class="btn btn-primary btn-block" style="margin-top:20px" onclick="R.runSearch()">Search</button>' : '')+
+    '</div>'+
+  '</div>';
+}
+function searchGroups(q){
+  const groups=[];
+  if(!q){
+    groups.push({icon:'mapPin',title:'Regions',items:REGIONS.map(r=>({icon:'mapPin',name:r.name,sub:r.sub,badge:trailsInRegion(r.id).length+' trails',onclick:"R.openRegion('"+r.id+"')"}))});
+    if(S.saved.length){
+      groups.push({icon:'bookmarkFill',title:'Saved',items:S.saved.slice(0,4).map(id=>{const t=trailById(id);return {icon:'bookmarkFill',name:t.name,sub:t.park,badge:fmtDist(t.lengthKm),onclick:"R.openTrail('"+t.id+"')"};})});
+    }
+    groups.push({icon:'starFill',title:'Popular right now',items:TRAILS.slice().sort((a,b)=>b.rating-a.rating).slice(0,5).map(t=>({icon:'mapPin',name:t.name,sub:t.park,badge:t.rating.toFixed(1)+'★',onclick:"R.openTrail('"+t.id+"')"}))});
+    return groups;
+  }
+  const matches = filteredTrails(parseQuery(q)).slice(0,8);
+  groups.push({icon:'search',title:matches.length+' matching trails',items:matches.map(t=>({icon:'mapPin',name:t.name,sub:t.park+' · '+fmtDist(t.lengthKm),badge:t.difficulty,onclick:"R.openTrail('"+t.id+"')"}))});
+  return groups;
+}
+
+/* ---- Results (1d) ---- */
+function resultsView(){
+  const f=S.filters, results=filteredTrails(f);
+  const sortKey = S.params.sort||'rating';
+  const sorted = results.slice().sort((a,b)=> sortKey==='rating'?b.rating-a.rating : sortKey==='length'?a.lengthKm-b.lengthKm : sortKey==='gain'?a.gainM-b.gainM : 0);
+  return '<div class="screen">'+
+    '<div class="appbar solid">'+
+      '<button class="iconbtn ghost" style="margin-left:-8px" onclick="R.nav(\'search\')">'+icon('chevronLeft',20)+'</button>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(f.q?esc(f.q):'All trails')+'</div>'+
+      '<div class="sub">'+sorted.length+' matches · '+filterSummary(f)+'</div></div>'+
+    '</div>'+
+    '<div class="px" style="display:flex;gap:8px;margin-top:4px;overflow-x:auto;padding-bottom:2px">'+
+      '<button class="chip on" onclick="R.nav(\'settingsSheet\')">'+icon('sliders',14)+'Filters'+(activeFilterCount(f)?' · '+activeFilterCount(f):'')+'</button>'+
+      ['rating','length','gain'].map(k=>'<button class="chip '+(sortKey===k?'on':'')+'" onclick="R.sortResults(\''+k+'\')">'+(k==='rating'?'Best rated':k==='length'?'Shortest':'Least climb')+'</button>').join('')+
+    '</div>'+
+    '<div class="px" style="display:flex;flex-direction:column;gap:10px;margin-top:14px">'+
+      (sorted.length? sorted.map(t=>trailCardHtml(t)).join('') : emptyState('search','No trails match','Try loosening a filter or turning off offline-only.'))+
+    '</div>'+
+    (f.offlineOnly ? '<div class="px" style="margin-top:4px"><div class="row gap10 card card-pad">'+icon('cloudOff',17)+'<span class="sub" style="flex:1">Offline-only is on — showing trails inside your '+S.downloaded.length+' downloaded region'+(S.downloaded.length===1?'':'s')+'.</span></div></div>' : '')+
+  '</div>';
+}
+function filterSummary(f){
+  const parts=[];
+  if(f.region!=='all') parts.push(regionOf(f.region).name.split('&')[0].trim());
+  if(f.difficulty.length) parts.push(f.difficulty.join('/'));
+  if(LEN_STEPS[f.lenIdx]!==Infinity) parts.push('under '+fmtDist(LEN_STEPS[f.lenIdx]));
+  return parts.length?parts.join(' · '):'all regions';
+}
+
+/* ---- Settings sheet (1e) ---- */
+function settingsSheet(){
+  const f=S.filters;
+  const chip=(label,on,onclick)=> '<button class="chip '+(on?'on':'')+'" onclick="'+onclick+'">'+esc(label)+'</button>';
+  return '<div class="sheet-wrap"><div class="sheet-backdrop" onclick="R.closeSheet()"></div><div class="sheet">'+
+    '<div class="sheet-handle"></div>'+
+    '<div class="row between" style="margin-bottom:6px"><h2 style="font-size:17px">Search settings</h2>'+
+      '<button class="btn-ghost btn" style="min-height:auto;padding:0" onclick="R.resetFilters()">Reset</button></div>'+
+    '<div class="row gap10" style="margin:14px 0">'+
+      '<span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2);flex:1">Units</span>'+
+      '<div class="row" style="border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--border)">'+
+        '<button style="padding:7px 15px;font-size:12px;background:'+(S.units==='km'?'var(--accent-fill);color:#fff':'transparent;color:var(--text-3)')+'" onclick="R.setUnits(\'km\')">km · m</button>'+
+        '<button style="padding:7px 15px;font-size:12px;background:'+(S.units==='mi'?'var(--accent-fill);color:#fff':'transparent;color:var(--text-3)')+'" onclick="R.setUnits(\'mi\')">mi · ft</button>'+
+      '</div></div>'+
+    '<div class="section-label" style="margin:14px 0 8px">Region</div>'+
+    '<div class="row gap8 wrap">'+chip('All regions',f.region==='all',"R.setFilterRegion('all')")+REGIONS.map(r=>chip(r.name.split('&')[0].trim(),f.region===r.id,"R.setFilterRegion('"+r.id+"')")).join('')+'</div>'+
+    '<div class="section-label" style="margin:16px 0 8px">Activity</div>'+
+    '<div class="row gap8 wrap">'+['hiking','trail-running','walking','snowshoeing','birding','horseback-riding'].map(a=>chip(ACTIVITY_LABEL[a]||a,f.activities.includes(a),"R.toggleArr('activities','"+a+"')")).join('')+'</div>'+
+    '<div class="section-label" style="margin:16px 0 8px">Difficulty</div>'+
+    '<div class="row gap8">'+['Easy','Moderate','Hard','Strenuous'].map(d=>'<div style="flex:1"><button class="chip '+(f.difficulty.includes(d)?'on':'')+'" style="width:100%;justify-content:center" onclick="R.toggleArr(\'difficulty\',\''+d+'\')">'+d+'</button></div>').join('')+'</div>'+
+    '<div class="row" style="margin:16px 0 4px"><span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2)">Length</span><span style="font-size:11.5px;color:var(--text-2);margin-left:auto">'+lenStepLabel(f.lenIdx)+'</span></div>'+
+    '<input type="range" min="0" max="'+(LEN_STEPS.length-1)+'" step="1" value="'+f.lenIdx+'" oninput="R.setLenIdx(this.value)">'+
+    '<div class="row" style="margin:10px 0 4px"><span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2)">Elevation gain</span><span style="font-size:11.5px;color:var(--text-2);margin-left:auto">'+gainStepLabel(f.gainIdx)+'</span></div>'+
+    '<input type="range" min="0" max="'+(GAIN_STEPS.length-1)+'" step="1" value="'+f.gainIdx+'" oninput="R.setGainIdx(this.value)">'+
+    '<div class="section-label" style="margin:16px 0 8px">Route type</div>'+
+    '<div class="row gap8 wrap">'+['Out & back','Loop','Point to point'].map(rt=>chip(rt,f.routeType.includes(rt),"R.toggleArr('routeType','"+rt+"')")).join('')+'</div>'+
+    '<div class="section-label" style="margin:16px 0 2px">Good for</div>'+
+    '<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--border-soft)"><span style="font-size:13.5px">Dog friendly</span>'+toggleHtml(f.dogsOk,'R.toggleBool(\'dogsOk\')')+'</div>'+
+    '<div class="row between" style="padding:10px 0"><span style="font-size:13.5px">Good for kids</span>'+toggleHtml(f.kidsOk,'R.toggleBool(\'kidsOk\')')+'</div>'+
+    '<button class="btn btn-primary btn-block" style="margin-top:18px" onclick="R.closeSheet()">Show '+filteredTrails(f).length+' trails</button>'+
+  '</div></div>';
+}
+function toggleHtml(on,onclick){ return '<button class="toggle '+(on?'on':'')+'" onclick="'+onclick+'"><span class="knob"></span></button>'; }
+
+/* ---- Trail detail (1f) ---- */
+function trailView(id){
+  const t=trailById(id); if(!t) return exploreView();
+  const tab = S.params.tab||'overview';
+  const saved=S.saved.includes(t.id), dl=S.downloaded.includes(t.region);
+  const dur = t.durationMin;
+  return '<div class="screen no-tab">'+
+    '<div style="height:236px;position:relative;background:repeating-linear-gradient(135deg,var(--card-2) 0 8px,var(--card) 8px 16px);display:flex;align-items:center;justify-content:center">'+
+      '<span style="font:10.5px var(--font-mono);color:var(--text-4)">trail photo — '+esc(t.near)+'</span>'+
+      '<div style="position:absolute;top:calc(var(--safe-t) + 14px);left:16px;right:16px;display:flex;justify-content:space-between">'+
+        '<button class="iconbtn" style="background:rgba(11,12,20,.75)" onclick="history.length>1?R.back():R.nav(\'explore\')">'+icon('chevronLeft',18)+'</button>'+
+        '<div class="row gap8">'+
+          '<button class="iconbtn" style="background:rgba(11,12,20,.75);color:'+(saved?'var(--accent-2)':'var(--text)')+'" onclick="R.toggleSaved(\''+t.id+'\')">'+icon(saved?'bookmarkFill':'bookmark',17)+'</button>'+
+          '<button class="iconbtn" style="background:rgba(11,12,20,.75)" onclick="R.shareTrail(\''+t.id+'\')">'+icon('share',16)+'</button>'+
+        '</div></div>'+
+    '</div>'+
+    '<div class="px" style="padding-top:14px">'+
+      '<div class="section-label">'+esc(t.park)+' · '+esc(t.near)+'</div>'+
+      '<h2 style="font-size:22px;margin-top:6px">'+esc(t.name)+'</h2>'+
+      '<div class="row gap8" style="margin-top:8px;flex-wrap:wrap">'+icon('starFill',13)+'<span style="font-size:12.5px">'+t.rating.toFixed(1)+'</span>'+(t.reviews?'<span style="font-size:12.5px;color:var(--text-4)">('+t.reviews.toLocaleString()+')</span>':'')+
+        '<span class="tag '+diffTagClass(t.difficulty)+'" style="margin-left:4px">'+t.difficulty+'</span><span style="font-size:11.5px;color:var(--text-3);margin-left:auto">'+t.routeType+'</span></div>'+
+      '<div class="row" style="margin-top:14px;padding:12px 0;border-radius:11px;background:var(--card)">'+
+        '<div class="stat-tile"><div class="v">'+fmtDist(t.lengthKm)+'</div><div class="l">Length</div></div><div class="divider-v"></div>'+
+        '<div class="stat-tile"><div class="v">'+fmtElev(t.gainM)+'</div><div class="l">Gain</div></div><div class="divider-v"></div>'+
+        '<div class="stat-tile"><div class="v">'+(t.estDuration?'~':'')+fmtDuration(dur)+'</div><div class="l">Est. time</div></div>'+
+      '</div>'+
+      (t.permitNote? '<div class="row gap9" style="margin-top:12px;padding:11px 12px;border-radius:9px;background:var(--warn-tint)">'+icon('warning',16)+'<span style="font-size:11.5px;color:var(--warn);line-height:1.4">'+esc(t.permitNote)+'</span></div>' : '')+
+      '<div class="row gap8" style="margin-top:14px">'+
+        '<button class="btn '+(dl?'btn-secondary':'btn-primary')+'" style="flex:1" onclick="R.nav(\'download\',{id:\''+t.id+'\'})">'+icon('download',16)+(dl?'Downloaded':'Download')+'</button>'+
+        '<button class="btn btn-secondary" style="flex:1" onclick="R.startNavigate(\''+t.id+'\')">'+icon('compass',16)+'Navigate</button>'+
+      '</div>'+
+      '<div class="row gap20" style="margin-top:18px;border-bottom:1px solid var(--border-soft)">'+
+        ['overview','reviews','map'].map(tb=>'<button style="padding-bottom:9px;font-size:13px;color:'+(tab===tb?'var(--accent-2)':'var(--text-3)')+';border-bottom:2px solid '+(tab===tb?'var(--accent-2)':'transparent')+'" onclick="R.setTrailTab(\''+tb+'\')">'+tb.charAt(0).toUpperCase()+tb.slice(1)+'</button>').join('')+
+      '</div>'+
+      trailTabContent(t,tab,dur)+
+    '</div>'+
+  '</div>';
+}
+function trailTabContent(t,tab,dur){
+  if(tab==='overview'){
+    const prof = elevationProfile(t);
+    const wp = waypoints(t);
+    return '<div style="padding:16px 0 24px">'+
+      '<p style="font-size:13.5px;line-height:1.6;color:var(--text-2)">'+esc(t.blurb)+'</p>'+
+      '<div class="row" style="margin:16px 0 6px"><span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2)">Elevation</span><span style="font-size:11px;color:var(--text-4);margin-left:auto">'+Math.round(mUnit(regionOf(t.region).baseElevM))+(S.units==='km'?'m':'ft')+' → '+Math.round(mUnit(t.highM))+(S.units==='km'?'m':'ft')+'</span></div>'+
+      '<div class="card" style="padding:10px">'+prof+'</div>'+
+      '<div class="row gap9" style="margin-top:14px;padding:11px 12px;border-radius:9px;background:var(--accent-tint)">'+icon('info',16)+'<span style="font-size:11px;color:var(--text-2);line-height:1.4">Profile shape is illustrative — built from the real length, gain and summit elevation, not a surveyed GPS track.</span></div>'+
+      '<div class="section-label" style="margin:18px 0 6px">On the trail</div>'+
+      wp.map(w=>'<div class="row gap11" style="padding:9px 0;border-bottom:1px solid var(--border-soft)">'+icon(w.icon,17)+'<div style="flex:1"><div style="font-size:13px">'+esc(w.name)+'</div><div class="sub">'+esc(w.note)+'</div></div><span style="font:10.5px var(--font-mono);color:var(--text-3)">'+fmtDist(w.km)+'</span></div>').join('')+
+      (t.source? '<a class="linkout" style="margin-top:16px" href="'+t.source.url+'" target="_blank" rel="noopener">View full trail page on AllTrails '+icon('chevronRight',13)+'</a>' : '')+
+    '</div>';
+  }
+  if(tab==='reviews'){
+    const dist = ratingDistribution(t.rating);
+    return '<div style="padding:16px 0 24px">'+
+      '<div class="row gap14" style="padding:12px;border-radius:9px;background:var(--card)">'+
+        '<div style="text-align:center"><div style="font-size:26px;font-weight:700">'+t.rating.toFixed(1)+'</div><div class="sub">'+(t.reviews?t.reviews.toLocaleString()+' reviews':'AllTrails rating')+'</div></div>'+
+        '<div style="flex:1;display:flex;flex-direction:column;gap:4px">'+
+        dist.map((p,i)=>'<div class="row gap7"><span style="font:10px var(--font-mono);color:var(--text-4)">'+(5-i)+'</span><div style="flex:1;height:4px;border-radius:3px;background:var(--card-2);overflow:hidden"><div style="height:100%;background:var(--accent-2);width:'+p+'%"></div></div></div>').join('')+
+        '</div></div>'+
+      (t.reviewSummary!==undefined? '' :'')+
+      '<div class="section-label" style="margin:16px 0 6px">What hikers say</div>'+
+      '<p class="sub" style="font-size:12.5px;line-height:1.6">'+esc(reviewBlurb(t))+'</p>'+
+      (t.source? '<a class="linkout" style="margin-top:14px" href="'+t.source.url+'" target="_blank" rel="noopener">Read reviews on AllTrails '+icon('chevronRight',13)+'</a>' : '<p class="sub" style="margin-top:12px;font-size:11.5px">Individual reviews aren\'t included in this dataset — ratings and the summary above come from AllTrails.</p>')+
+    '</div>';
+  }
+  return '<div style="padding:16px 0 24px">'+
+    '<div class="map-abstract" style="height:270px;border-radius:12px;padding:14px">'+routeSvg(t)+'</div>'+
+    '<div class="row gap8" style="margin-top:12px">'+
+      '<div class="stat-tile card" style="padding:11px"><div class="v" style="font-size:14px">'+fmtDist(t.lengthKm)+'</div><div class="l">Length</div></div>'+
+      '<div class="stat-tile card" style="padding:11px"><div class="v" style="font-size:14px">'+t.routeType+'</div><div class="l">Route</div></div>'+
+    '</div>'+
+  '</div>';
+}
+function mUnit(m){ return S.units==='km'?m:m*3.28084; }
+function ratingDistribution(avg){
+  const top=Math.max(38,Math.round((avg-3)*55)); const rest=100-top;
+  return [top, Math.round(rest*.55), Math.round(rest*.28), Math.round(rest*.12), Math.max(1,Math.round(rest*.05))];
+}
+function reviewBlurb(t){
+  const hi = t.difficulty==='Strenuous'||t.difficulty==='Hard' ? 'Most reviewers rate the views well worth the climb, and mention starting early to beat both the crowds and the heat.' : 'Reviewers consistently call it one of the easier ways to see the area\'s big scenery, and a good option with kids.';
+  return hi+' Trail condition reports from the Ridgeline community for this trail show up under Community.';
+}
+function elevationProfile(t){
+  let seed=0; for(let i=0;i<t.id.length;i++) seed=(seed*31+t.id.charCodeAt(i))>>>0;
+  const rnd=()=>{ seed=(seed*1103515245+12345)>>>0; return (seed>>>8)/16777216; };
+  const W=320,H=72,N=13; const base=regionOf(t.region).baseElevM, top=t.highM;
+  let pts=[]; for(let i=0;i<=N;i++){
+    const x=i/N;
+    const shape = t.routeType==='Out & back' ? (x<=0.5? x*2 : (1-x)*2) : x;
+    const noise=(rnd()-0.5)*0.08;
+    const y = Math.max(0,Math.min(1, shape+noise));
+    pts.push([Math.round(x*W), Math.round(H-4-(y*(H-14))) ]);
+  }
+  const line=pts.map(p=>p.join(',')).join(' ');
+  const area=pts.map(p=>p.join(',')).join(' ')+' '+W+','+H+' 0,'+H;
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px" preserveAspectRatio="none">'+
+    '<polygon points="'+area+'" fill="var(--accent-tint)"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="var(--accent-2)" stroke-width="2"/>'+
+  '</svg>';
+}
+function routeSvg(t){
+  let seed=0; for(let i=0;i<t.id.length;i++) seed=(seed*31+t.id.charCodeAt(i))>>>0;
+  const rnd=()=>{ seed=(seed*1103515245+12345)>>>0; return (seed>>>8)/16777216; };
+  const pts=[]; const n=7; let x=40,y=240;
+  for(let i=0;i<n;i++){ pts.push([x,y]); x+=30+rnd()*30; y-=20+rnd()*22; }
+  const line=pts.map(p=>p.join(',')).join(' ');
+  return '<svg viewBox="0 0 340 270" style="position:absolute;inset:0;width:100%;height:100%">'+
+    '<polyline points="'+line+'" fill="none" stroke="var(--accent-2)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>'+
+    '<circle cx="'+pts[0][0]+'" cy="'+pts[0][1]+'" r="6" fill="var(--surface)" stroke="var(--accent-2)" stroke-width="2.5"/>'+
+    '<circle cx="'+pts[n-1][0]+'" cy="'+pts[n-1][1]+'" r="6" fill="var(--accent-2)"/>'+
+  '</svg>';
+}
+function waypoints(t){
+  const feat = t.features.find(f=>['waterfall','lake','views','historic-site','river'].includes(f));
+  const mid = Math.round(t.lengthKm*0.5*10)/10;
+  const list=[{icon:'flag',name:'Trailhead',km:0,note:'Start — check conditions before you go'}];
+  if(feat) list.push({icon:'mapPin',name:FEATURE_LABEL[feat]||'Midpoint',km:mid,note:'Good rest stop, roughly halfway'});
+  list.push({icon:'mountainFill',name:t.endLabel||t.name,km:t.lengthKm,note: t.routeType==='Out & back' ? 'Turnaround point' : 'Trail end'});
+  return list;
+}
+
+/* ---- Download flow (1g) ---- */
+function downloadView(id){
+  const t=trailById(id); const region=regionOf(t.region);
+  const dl = S.downloaded.includes(region.id);
+  const plan=S.storagePlan;
+  const mb = regionStorageMB(region.id);
+  const prog = S.params.progress;
+  return '<div class="screen no-tab sheet-wrap" style="position:relative;background:var(--bg)"><div class="sheet" style="width:100%;max-width:520px;margin:0 auto;border-radius:0;min-height:100vh;padding-top:calc(var(--safe-t)+16px)">'+
+    '<div class="row between"><h2 style="font-size:18px">Download region</h2><button class="iconbtn ghost" onclick="R.nav(\'trail\',{id:\''+t.id+'\'})">'+icon('x',20)+'</button></div>'+
+    '<p class="sub" style="margin-top:8px">'+region.name+' · '+trailsInRegion(region.id).length+' trails including '+esc(t.name)+'</p>'+
+    '<div class="section-label" style="margin:18px 0 8px">Detail level</div>'+
+    '<div class="row gap8">'+
+      ['standard','full'].map(d=>'<button class="chip" style="flex:1;justify-content:center;'+(plan.detail===d?'background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent);color:#fff':'')+'" onclick="R.setPlan(\'detail\',\''+d+'\')">'+(d==='standard'?'Standard':'Full offline')+'</button>').join('')+
+    '</div>'+
+    '<p class="sub" style="margin-top:8px">'+(plan.detail==='full'? 'A wider area around the trailheads, zoomed in to street level.' : 'A tighter area around the trailheads, zoomed to trail level.')+'</p>'+
+    '<div class="row between" style="margin-top:16px;padding:10px 0;border-bottom:1px solid var(--border-soft)"><span style="font-size:13.5px">Real map tiles (OpenStreetMap)</span>'+toggleHtml(true,'')+'</div>'+
+    '<div class="row between" style="margin-top:18px;padding:13px 14px;border-radius:10px;background:var(--card)">'+
+      '<span style="font-size:12.5px;color:var(--text-2)">Estimated size</span><span style="font:600 14px var(--font-mono)">'+mb+' MB</span>'+
+    '</div>'+
+    (prog!=null ? '<div style="margin-top:16px"><div class="progress-track"><div class="progress-fill" style="width:'+prog+'%"></div></div><div class="sub" style="margin-top:6px">'+prog+'% · downloading real map tiles for offline use</div></div>' : '')+
+    '<button class="btn btn-primary btn-block" style="margin-top:20px" '+(prog!=null&&prog<100?'disabled':'')+' onclick="R.confirmDownload(\''+region.id+'\')">'+(dl?'Re-download':prog!=null?'Downloading…':'Download')+'</button>'+
+  '</div></div>';
+}
+
+/* ---- Record (1i) ---- */
+function recordView(){
+  const rec=S.record;
+  if(!rec.running){
+    const trailId = S.params.trailId;
+    const t = trailId? trailById(trailId) : null;
+    return '<div class="screen">'+
+      '<div class="appbar"><h1>Record</h1></div>'+
+      '<div class="px" style="margin-top:6px">'+
+        (t? '<div class="card card-pad row gap10" style="margin-bottom:16px"><div class="avatarph" style="width:44px;height:44px"><span style="font-size:8px">map</span></div><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(t.name)+'</div><div class="sub">Navigating · '+fmtDist(t.lengthKm)+'</div></div><button class="iconbtn ghost" onclick="R.setRecordTrail(null)">'+icon('x',16)+'</button></div>' : '')+
+        '<div class="map-abstract" style="height:260px;border-radius:16px;display:flex;align-items:center;justify-content:center">'+
+          (navigator.geolocation? '<div style="text-align:center">'+icon('compass',30)+'<div class="sub" style="margin-top:8px">Ready when you are</div></div>' : '<div style="text-align:center;padding:0 30px">'+icon('warning',26)+'<div class="sub" style="margin-top:8px">No GPS on this device — you can still track time.</div></div>')+
+        '</div>'+
+        '<div class="row gap10" style="margin-top:18px">'+
+          ['hiking','trail-running','walking'].map(a=>'<button class="chip '+(S.params.activity===a?'on':'')+'" style="flex:1;justify-content:center" onclick="R.setRecordActivity(\''+a+'\')">'+ACTIVITY_LABEL[a]+'</button>').join('')+
+        '</div>'+
+        '<button class="btn btn-primary btn-block" style="margin-top:22px;min-height:56px;font-size:16px" onclick="R.beginRecording()">'+icon('play',18)+'Start recording</button>'+
+        '<p class="sub" style="text-align:center;margin-top:12px">Uses your phone\'s location only while this screen is open.</p>'+
+      '</div>'+
+    '</div>';
+  }
+  return '<div class="screen no-tab" style="min-height:100vh;display:flex;flex-direction:column;padding-top:calc(var(--safe-t)+18px)">'+
+    '<div class="px row between"><span class="row gap8"><span class="livedot" style="width:9px;height:9px;box-shadow:none;background:'+(rec.paused?'var(--text-4)':'var(--danger)')+'"></span><span style="font-size:12.5px;color:var(--text-3)" id="recGpsState">'+gpsStateLabel()+'</span></span>'+
+      '<button class="iconbtn ghost" onclick="R.confirmDiscard()">'+icon('x',20)+'</button></div>'+
+    '<div class="px" style="margin-top:10px">'+recordMapHtml()+'</div>'+
+    '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0">'+
+      '<div id="recTimer" style="font:700 44px var(--font-mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums">'+fmtClock(rec.elapsedMs)+'</div>'+
+      '<div class="sub" style="margin-top:2px">elapsed time</div>'+
+      '<div class="row gap0" style="margin-top:18px;width:100%;padding:0 24px">'+
+        '<div class="stat-tile"><div class="v" id="recDist">'+fmtDist(rec.distanceKm)+'</div><div class="l">Distance</div></div>'+
+        '<div class="stat-tile"><div class="v" id="recGain">'+fmtElev(rec.gainM)+'</div><div class="l">Elev. gain</div></div>'+
+        '<div class="stat-tile"><div class="v" id="recPace">—</div><div class="l">Pace</div></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="px row gap14" style="padding-bottom:calc(var(--safe-b)+22px)">'+
+      '<button class="btn btn-secondary" style="flex:1;min-height:58px" onclick="R.togglePause()">'+icon(rec.paused?'play':'pause',20)+(rec.paused?'Resume':'Pause')+'</button>'+
+      '<button class="btn btn-primary" style="flex:1;min-height:58px" onclick="R.finishRecording()">'+icon('stop',20)+'Finish</button>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---- Offline manager (1h) ---- */
+function offlineView(){
+  const used=totalStorageMB();
+  return '<div class="screen">'+
+    '<div class="appbar"><h1>Offline</h1></div>'+
+    '<div class="px" style="margin-top:4px">'+
+      '<div class="row between"><span style="font-size:13px;font-weight:600">'+used+' MB used</span><span class="sub" id="deviceQuota">checking device storage…</span></div>'+
+      '<div class="progress-track" style="margin-top:8px"><div class="progress-fill" style="width:'+Math.min(100,used/20)+'%"></div></div>'+
+    '</div>'+
+    '<div class="px section-label" style="margin-top:20px">Downloaded regions</div>'+
+    '<div class="px" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">'+
+    (S.downloaded.length? S.downloaded.map(rid=>{ const r=regionOf(rid); return '<div class="card card-pad row gap12">'+
+      icon('mapPin',18)+'<div style="flex:1"><div style="font-size:13.5px;font-weight:600">'+r.name+'</div><div class="sub">'+trailsInRegion(rid).length+' trails · '+regionStorageMB(rid)+' MB</div></div>'+
+      '<button class="iconbtn ghost" style="color:var(--danger)" onclick="R.removeRegion(\''+rid+'\')">'+icon('trash',17)+'</button>'+
+    '</div>'; }).join('') : emptyState('cloudOff','Nothing downloaded yet','Pick a region to hike offline.'))+
+    '</div>'+
+    (S.downloaded.length<REGIONS.length ? '<div class="px" style="margin-top:8px">'+
+      '<div class="section-label" style="margin:14px 0 10px">Add another region</div>'+
+      REGIONS.filter(r=>!S.downloaded.includes(r.id)).map(r=>'<div class="card card-pad row gap12" style="margin-bottom:10px;cursor:pointer" onclick="R.nav(\'download\',{id:\''+trailsInRegion(r.id)[0].id+'\'})">'+
+        icon('download',18)+'<div style="flex:1"><div style="font-size:13.5px;font-weight:600">'+r.name+'</div><div class="sub">~'+regionStorageMB(r.id)+' MB</div></div>'+icon('chevronRight',18)+'</div>').join('')+
+    '</div>' : '')+
+    '<div class="px" style="margin-top:22px">'+
+      '<div class="section-label" style="margin-bottom:10px">Auto-update rules</div>'+
+      '<div class="row between" style="padding:11px 0;border-bottom:1px solid var(--border-soft)"><div><div style="font-size:13.5px">Refresh over Wi-Fi only</div><div class="sub">Updates regions overnight, never on cellular</div></div>'+toggleHtml(S.wifiOnly,'R.toggleWifiOnly()')+'</div>'+
+      '<div class="row between" style="padding:11px 0"><div><div style="font-size:13.5px">Auto-update downloaded regions</div><div class="sub">Keep trail data current automatically</div></div>'+toggleHtml(S.autoUpdate,'R.toggleAutoUpdate()')+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---- Profile (1k) ---- */
+function profileView(){
+  const acts=S.activities;
+  const totalKm=acts.reduce((s,a)=>s+a.distanceKm,0), totalGain=acts.reduce((s,a)=>s+a.gainM,0);
+  const yr=new Date().getFullYear();
+  const ytdKm=acts.filter(a=>new Date(a.date).getFullYear()===yr).reduce((s,a)=>s+a.distanceKm,0);
+  return '<div class="screen">'+
+    '<div class="appbar"><h1>You</h1><button class="iconbtn" onclick="R.nav(\'about\')">'+icon('info',18)+'</button></div>'+
+    '<div class="px row gap12" style="margin-top:4px">'+
+      '<div style="width:52px;height:52px;border-radius:50%;background:var(--accent-fill);display:flex;align-items:center;justify-content:center;color:var(--accent-2)">'+icon('user',24)+'</div>'+
+      '<div style="flex:1"><input class="textinput" style="padding:8px 11px;font-size:14px;font-weight:600" placeholder="Your name" value="'+esc(S.displayName)+'" oninput="R.setDisplayName(this.value)"></div>'+
+    '</div>'+
+    '<div class="px row" style="margin-top:18px;padding:14px 0;border-radius:12px;background:var(--card);margin-left:18px;margin-right:18px;width:auto">'+
+      '<div class="stat-tile"><div class="v">'+fmtDist(totalKm)+'</div><div class="l">All time</div></div><div class="divider-v"></div>'+
+      '<div class="stat-tile"><div class="v">'+fmtElev(totalGain)+'</div><div class="l">Elev. gained</div></div><div class="divider-v"></div>'+
+      '<div class="stat-tile"><div class="v">'+acts.length+'</div><div class="l">Activities</div></div>'+
+    '</div>'+
+    '<div class="px sub" style="margin-top:10px;text-align:center">'+fmtDist(ytdKm)+' so far in '+yr+'</div>'+
+    '<div class="px row between" style="margin-top:22px">'+
+      '<div class="section-label">Saved & lists</div><button class="btn-ghost btn" style="min-height:auto;padding:0;font-size:12px" onclick="R.nav(\'saved\')">See all '+icon('chevronRight',13)+'</button>'+
+    '</div>'+
+    '<div class="px" style="margin-top:10px"><div class="card card-pad row gap10" style="cursor:pointer" onclick="R.nav(\'saved\')">'+icon('bookmarkFill',18)+'<span style="flex:1;font-size:13.5px">'+S.saved.length+' saved trail'+(S.saved.length===1?'':'s')+'</span>'+icon('chevronRight',16)+'</div></div>'+
+    '<div class="px row between" style="margin-top:22px"><div class="section-label">Recent activities</div></div>'+
+    '<div class="px" style="display:flex;flex-direction:column;gap:8px;margin-top:10px">'+
+    (acts.length? acts.slice(0,8).map(a=>'<div class="card card-pad row gap12">'+icon(a.gps?'compass':'clock',18)+
+      '<div style="flex:1"><div style="font-size:13.5px;font-weight:600">'+esc(a.name)+'</div><div class="sub">'+new Date(a.date).toLocaleDateString(undefined,{month:'short',day:'numeric'})+' · '+fmtClock(a.durationSec*1000)+(a.gps?' · GPS':' · timer only')+'</div></div>'+
+      '<div style="text-align:right"><div style="font:600 12.5px var(--font-mono)">'+fmtDist(a.distanceKm)+'</div><div class="sub">'+fmtElev(a.gainM)+'</div></div>'+
+    '</div>').join('') : emptyState('dot','No activities yet','Hit Record to track your first hike.'))+
+    '</div>'+
+  '</div>';
+}
+function savedView(){
+  return '<div class="screen">'+
+    '<div class="appbar solid"><button class="iconbtn ghost" style="margin-left:-8px" onclick="R.nav(\'profile\')">'+icon('chevronLeft',20)+'</button><h1 style="font-size:17px">Saved trails</h1></div>'+
+    '<div class="px" style="display:flex;flex-direction:column;gap:10px;margin-top:12px">'+
+    (S.saved.length? S.saved.map(id=>trailCardHtml(trailById(id))).join('') : emptyState('bookmark','Nothing saved yet','Tap the bookmark icon on any trail to keep it here.'))+
+    '</div>'+
+  '</div>';
+}
+
+/* ---- Community (1l) ---- */
+function communityView(){
+  return '<div class="screen">'+
+    '<div class="appbar"><h1>Community</h1></div>'+
+    '<p class="px sub" style="margin-top:-4px">Live condition reports from everyone using Ridgeline'+(DB?'':' on this device')+'.</p>'+
+    '<div class="px" style="margin-top:14px"><button class="btn btn-secondary btn-block" onclick="R.openReportForm()">'+icon('plus',16)+'Post a condition report</button></div>'+
+    '<div id="communityList" class="px" style="display:flex;flex-direction:column;gap:10px;margin-top:16px">'+communityListHtml()+'</div>'+
+  '</div>';
+}
+function communityListHtml(){
+  const local = ld('localReports', []);
+  const docs = (DB? communityDocs : local);
+  if(!docs.length) return emptyState('moon','No reports yet','Be the first to share trail conditions.');
+  return docs.map(r=>'<div class="card card-pad">'+
+    '<div class="row between"><span style="font-size:13px;font-weight:600">'+esc(r.author||'A hiker')+'</span><span class="sub">'+timeAgo(r.ts)+'</span></div>'+
+    (r.trailName? '<div class="row gap6" style="margin-top:4px">'+icon('mapPin',13)+'<span class="sub">'+esc(r.trailName)+'</span></div>':'')+
+    '<div class="row gap6" style="margin-top:8px"><span class="tag" style="background:var(--accent-tint);color:var(--accent-2)">'+esc(conditionLabel(r.tag))+'</span></div>'+
+    (r.note? '<p style="font-size:12.5px;line-height:1.5;color:var(--text-2);margin-top:8px">'+esc(r.note)+'</p>':'')+
+  '</div>').join('');
+}
+function conditionLabel(tag){ return {clear:'Trail clear',muddy:'Muddy',snow:'Snow/ice',closed:'Closure reported',crowded:'Busy today',wildlife:'Wildlife sighting'}[tag]||tag; }
+function timeAgo(ts){ const s=(Date.now()-ts)/1000; if(s<60)return 'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+
+function aboutView(){
+  return '<div class="screen no-tab">'+
+    '<div class="appbar solid"><button class="iconbtn ghost" style="margin-left:-8px" onclick="R.nav(\'profile\')">'+icon('chevronLeft',20)+'</button><h1 style="font-size:17px">About Ridgeline</h1></div>'+
+    '<div class="px" style="margin-top:8px;display:flex;flex-direction:column;gap:14px">'+
+      '<div class="row gap10">'+icon('mountainFill',26)+'<span style="font:700 18px var(--font-ui)">Ridgeline</span></div>'+
+      '<p class="sub">A personal offline-trail companion covering Banff & Lake Louise, the Sea-to-Sky & North Shore, Zion & Bryce, and the Grand Canyon.</p>'+
+      '<div class="card card-pad"><div style="font-size:13px;font-weight:600">Trail data</div><p class="sub" style="margin-top:6px">Distances, elevation gain and ratings for all 24 trails are sourced from AllTrails. A few pages link out to the full AllTrails listing for photos and reviews.</p></div>'+
+      '<div class="card card-pad"><div style="font-size:13px;font-weight:600">Recording</div><p class="sub" style="margin-top:6px">Uses your device\'s GPS while this app is open in the foreground. Like most browser-based apps, it can\'t record in the background with the screen off.</p></div>'+
+      '<div class="card card-pad"><div style="font-size:13px;font-weight:600">Offline storage</div><p class="sub" style="margin-top:6px">"Downloading" a region caches its trail data for offline browsing. Pack sizes are estimates — this is a lightweight app, not a full map-tile downloader.</p></div>'+
+      '<button class="btn btn-danger btn-block" style="margin-top:6px" onclick="R.confirmReset()">Reset all app data</button>'+
+    '</div>'+
+  '</div>';
+}
+function emptyState(ic,title,sub){ return '<div class="empty">'+icon(ic,32)+'<div style="font-size:14px;font-weight:600;color:var(--text-2)">'+esc(title)+'</div><div style="font-size:12.5px">'+esc(sub)+'</div></div>'; }
+
+/* ================================================================== ACTIONS */
+const R = {
+  nav(v,p){ nav(v,p); },
+  back(){ if(S.view==='trail'||S.view==='download') nav('explore'); else history.back(); },
+  onboardStep(step){ nav('onboarding' in {}?'':S.view, S.params); S.view='onboarding'; S.params={step:step, region:S.params.region}; render(); },
+  onboardPickRegion(id){ S.params.region=id; render(); },
+  finishOnboarding(skip){
+    if(!skip && S.params.region){ if(!S.downloaded.includes(S.params.region)) S.downloaded.push(S.params.region); }
+    S.onboarded=true; persistCore(); nav('explore');
+  },
+  locate(){ requestLocationOnce(); },
+  openTrail(id){ nav('trail',{id, tab:'overview'}); },
+  setTrailTab(tab){ S.params.tab=tab; render(); },
+  openRegion(id){ S.filters=defaultFilters(); S.filters.region=id; nav('searchResults'); },
+  toggleSaved(id){
+    const i=S.saved.indexOf(id);
+    if(i>=0){ S.saved.splice(i,1); showToast('Removed from saved','x'); } else { S.saved.unshift(id); showToast('Saved','bookmarkFill'); }
+    persistCore(); render();
+  },
+  shareTrail(id){ const t=trailById(id); const text=t.name+' — '+fmtDist(t.lengthKm)+', '+fmtElev(t.gainM)+' gain ('+t.difficulty+')'+(t.source?' '+t.source.url:'');
+    if(navigator.share){ navigator.share({title:t.name,text}).catch(()=>{}); } else if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>showToast('Copied trail details','check')); } else { showToast('Share not available'); } },
+  onSearchInput(v){ const f=parseQuery(v); S.filters=f; const el=document.querySelector('.px'); render(); const inp=document.getElementById('searchInput'); if(inp){inp.focus(); inp.setSelectionRange(v.length,v.length);} },
+  runSearch(){ nav('searchResults'); },
+  toggleOfflineOnly(){ S.filters.offlineOnly=!S.filters.offlineOnly; render(); },
+  sortResults(k){ S.params.sort=k; render(); },
+  closeSheet(){ nav('searchResults'); },
+  resetFilters(){ const q=S.filters.q; S.filters=defaultFilters(); S.filters.q=q; render(); },
+  setUnits(u){ S.units=u; persistCore(); render(); },
+  setFilterRegion(id){ S.filters.region=id; render(); },
+  toggleArr(key,val){ const a=S.filters[key]; const i=a.indexOf(val); if(i>=0)a.splice(i,1); else a.push(val); render(); },
+  toggleBool(key){ S.filters[key]=!S.filters[key]; render(); },
+  setLenIdx(v){ S.filters.lenIdx=+v; render(); },
+  setGainIdx(v){ S.filters.gainIdx=+v; render(); },
+  setPlan(key,val){ S.storagePlan[key]=val; persistCore(); render(); },
+  confirmDownload(regionId){
+    const region = regionOf(regionId);
+    const urls = regionTileUrls(region, S.storagePlan.detail==='full');
+    S.params.progress=0; render();
+    const finish=()=>{
+      if(!S.downloaded.includes(regionId)) S.downloaded.push(regionId); persistCore();
+      showToast(region.name+' available offline','checkCircle');
+      setTimeout(()=>{ S.params.progress=null; nav('trail',{id:S.params.id}); },400);
+    };
+    if(!('serviceWorker' in navigator)){ finish(); return; }
+    const timeout = new Promise(res=>setTimeout(()=>res(null), 4000));
+    Promise.race([navigator.serviceWorker.ready, timeout]).then(reg=>{
+      const sw = reg && (reg.active || navigator.serviceWorker.controller);
+      if(!sw){ finish(); return; } // SW unavailable — don't block the user, tiles still cache opportunistically once it's active
+      const onMsg=(ev)=>{
+        const d=ev.data;
+        if(d && d.type==='TILE_PROGRESS' && d.regionId===regionId){
+          S.params.progress = Math.round(d.done/d.total*100); render();
+          if(d.done>=d.total){ navigator.serviceWorker.removeEventListener('message', onMsg); finish(); }
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', onMsg);
+      sw.postMessage({type:'CACHE_TILES', regionId, urls});
+    }).catch(finish);
+  },
+  removeRegion(id){
+    const i=S.downloaded.indexOf(id); if(i>=0){ S.downloaded.splice(i,1); persistCore();
+      if('serviceWorker' in navigator && navigator.serviceWorker.controller){ navigator.serviceWorker.controller.postMessage({type:'CLEAR_TILES', regionId:id}); }
+      showToast(regionOf(id).name+' removed','trash'); render(); }
+  },
+  toggleWifiOnly(){ S.wifiOnly=!S.wifiOnly; persistCore(); render(); },
+  toggleAutoUpdate(){ S.autoUpdate=!S.autoUpdate; persistCore(); render(); },
+  setDisplayName(v){ S.displayName=v; persistCore(); },
+  setRecordTrail(id){ S.params.trailId=id; render(); },
+  setRecordActivity(a){ S.params.activity=a; render(); },
+  startNavigate(trailId){ nav('record',{trailId, activity:'hiking'}); },
+  beginRecording(){ startRecording(S.params.trailId); },
+  togglePause(){ pauseRecording(); },
+  finishRecording(){ stopRecording(true); nav('profile'); },
+  confirmDiscard(){ if(confirm('Discard this recording?')){ stopRecording(false); nav('record'); } },
+  openReportForm(){
+    const wrap=document.createElement('div'); wrap.innerHTML=reportSheet(); document.body.appendChild(wrap.firstChild);
+  },
+  closeReportForm(){ const el=document.getElementById('reportSheetWrap'); if(el) el.remove(); },
+  submitReport(){
+    const trailSel=document.getElementById('rfTrail'), tagSel=document.getElementById('rfTag'), noteEl=document.getElementById('rfNote');
+    postReport(trailSel.value||null, tagSel.value, noteEl.value);
+    R.closeReportForm();
+  },
+  confirmReset(){ if(confirm('This clears saved trails, downloads, activities and settings on this device. Continue?')){ Object.keys(localStorage).filter(k=>k.startsWith(LS_PREFIX)).forEach(k=>localStorage.removeItem(k)); location.reload(); } },
+};
+function reportSheet(){
+  return '<div id="reportSheetWrap" class="sheet-wrap"><div class="sheet-backdrop" onclick="R.closeReportForm()"></div><div class="sheet">'+
+    '<div class="sheet-handle"></div><h2 style="font-size:17px;margin-bottom:14px">Post a condition report</h2>'+
+    '<label class="field-label">Trail (optional)</label>'+
+    '<select id="rfTrail" class="textinput" style="margin-bottom:14px"><option value="">General / not trail-specific</option>'+TRAILS.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('')+'</select>'+
+    '<label class="field-label">Condition</label>'+
+    '<select id="rfTag" class="textinput" style="margin-bottom:14px">'+['clear','muddy','snow','closed','crowded','wildlife'].map(k=>'<option value="'+k+'">'+conditionLabel(k)+'</option>').join('')+'</select>'+
+    '<label class="field-label">Note (optional)</label>'+
+    '<textarea id="rfNote" class="textinput" placeholder="What did you see out there?"></textarea>'+
+    '<button class="btn btn-primary btn-block" style="margin-top:16px" onclick="R.submitReport()">Post report</button>'+
+  '</div></div>';
+}
+
+/* ---------------------------------------------------------------- boot */
+function checkDeviceStorage(){
+  if(navigator.storage && navigator.storage.estimate){
+    navigator.storage.estimate().then(e=>{
+      const el=document.getElementById('deviceQuota');
+      if(el && e.quota) el.textContent = 'of ~'+Math.round(e.quota/1048576)+' MB free on this device';
+    }).catch(()=>{});
+  }
+}
+const _origRender = render;
+render = function(){ _origRender(); if(S.view==='offline') checkDeviceStorage(); };
+
+render();
+initDb();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
