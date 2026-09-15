@@ -1537,6 +1537,10 @@ function trailBlurb(t){
   const featTxt = feats.length ? ' Passes '+feats.join(' and ')+'.' : '';
   return 'A '+t.difficulty.toLowerCase()+' '+t.routeType.toLowerCase()+' route in '+t.park+'.'+featTxt;
 }
+function trailAllTrailsUrl(t){
+  if(t.source && t.source.url) return t.source.url;
+  return 'https://www.alltrails.com/search?q='+encodeURIComponent(t.name+' '+t.park);
+}
 function fmtClock(ms){ const s=Math.floor(ms/1000); const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;
   return (h>0? String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
 function lenStepLabel(i){ return i>=LEN_STEPS.length-1 ? 'Any distance' : 'Under '+fmtDist(LEN_STEPS[i]); }
@@ -2108,7 +2112,7 @@ function trailTabContent(t,tab){
       '<div class="row gap9" style="margin-top:14px;padding:11px 12px;border-radius:9px;background:var(--accent-tint)">'+icon('info',16)+'<span style="font-size:11px;color:var(--text-2);line-height:1.4">Profile shape is illustrative — built from the real length, gain and summit elevation, not a surveyed GPS track.</span></div>'+
       '<div class="section-label" style="margin:18px 0 6px">On the trail</div>'+
       wp.map(w=>'<div class="row gap11" style="padding:9px 0;border-bottom:1px solid var(--border-soft)">'+icon(w.icon,17)+'<div style="flex:1"><div style="font-size:13px">'+esc(w.name)+'</div><div class="sub">'+esc(w.note)+'</div></div><span style="font:10.5px var(--font-mono);color:var(--text-3)">'+fmtDist(w.km)+'</span></div>').join('')+
-      (t.source? '<a class="linkout" style="margin-top:16px" href="'+t.source.url+'" target="_blank" rel="noopener">View full trail page on AllTrails '+icon('chevronRight',13)+'</a>' : '')+
+      '<a class="linkout" style="margin-top:16px" href="'+trailAllTrailsUrl(t)+'" target="_blank" rel="noopener">View full trail page on AllTrails '+icon('chevronRight',13)+'</a>'+
     '</div>';
   }
   if(tab==='reviews'){
@@ -2122,17 +2126,18 @@ function trailTabContent(t,tab){
       (t.reviewSummary!==undefined? '' :'')+
       '<div class="section-label" style="margin:16px 0 6px">What hikers say</div>'+
       '<p class="sub" style="font-size:12.5px;line-height:1.6">'+esc(reviewBlurb(t))+'</p>'+
-      (t.source? '<a class="linkout" style="margin-top:14px" href="'+t.source.url+'" target="_blank" rel="noopener">Read reviews on AllTrails '+icon('chevronRight',13)+'</a>' : '<p class="sub" style="margin-top:12px;font-size:11.5px">Individual reviews aren\'t included in this dataset — ratings and the summary above come from AllTrails.</p>')+
+      '<a class="linkout" style="margin-top:14px" href="'+trailAllTrailsUrl(t)+'" target="_blank" rel="noopener">Read reviews on AllTrails '+icon('chevronRight',13)+'</a>'+
+      '<p class="sub" style="margin-top:10px;font-size:11.5px">Individual reviews aren\'t included in this dataset — ratings and the summary above come from AllTrails.</p>'+
     '</div>';
   }
   return '<div style="padding:16px 0 24px">'+
     trailMapHtml()+
-    '<div class="row gap9" style="margin-top:12px;padding:11px 12px;border-radius:9px;background:var(--accent-tint)">'+icon('info',16)+'<span style="font-size:11px;color:var(--text-2);line-height:1.4">Marker shows the general area in '+esc(t.park)+', not the exact trailhead — this dataset doesn\'t include surveyed trailhead coordinates.</span></div>'+
+    '<div class="row gap9" style="margin-top:12px;padding:11px 12px;border-radius:9px;background:var(--accent-tint)">'+icon('info',16)+'<span style="font-size:11px;color:var(--text-2);line-height:1.4">Marker shows the general area in '+esc(t.park)+', not the exact trailhead. The dashed line is an illustrative route shape, not a surveyed GPS track — AllTrails doesn\'t expose the real trail path through this dataset.</span></div>'+
     '<div class="row gap8" style="margin-top:12px">'+
       '<div class="stat-tile card" style="padding:11px"><div class="v" style="font-size:14px">'+fmtDist(t.lengthKm)+'</div><div class="l">Length</div></div>'+
       '<div class="stat-tile card" style="padding:11px"><div class="v" style="font-size:14px">'+t.routeType+'</div><div class="l">Route</div></div>'+
     '</div>'+
-    (t.source? '<a class="linkout" style="margin-top:12px" href="'+t.source.url+'" target="_blank" rel="noopener">Open the real trail map on AllTrails '+icon('chevronRight',13)+'</a>' : '')+
+    '<a class="linkout" style="margin-top:12px" href="'+trailAllTrailsUrl(t)+'" target="_blank" rel="noopener">See the real trail map & GPS track on AllTrails '+icon('chevronRight',13)+'</a>'+
   '</div>';
 }
 function trailApproxLatLon(t){
@@ -2140,6 +2145,23 @@ function trailApproxLatLon(t){
   let seed=0; for(let i=0;i<t.id.length;i++) seed=(seed*31+t.id.charCodeAt(i))>>>0;
   const rnd=()=>{ seed=(seed*1103515245+12345)>>>0; return (seed>>>8)/16777216; };
   return { lat: region.lat + (rnd()-0.5)*0.16, lon: region.lon + (rnd()-0.5)*0.16 };
+}
+function trailIllustrativePath(t){
+  const pos=trailApproxLatLon(t);
+  let seed=0; for(let i=0;i<t.id.length;i++) seed=(seed*31+t.id.charCodeAt(i)+7)>>>0;
+  const rnd=()=>{ seed=(seed*1103515245+12345)>>>0; return (seed>>>8)/16777216; };
+  const isLoop = t.routeType==='Loop';
+  const n = 11;
+  const pts=[]; let ang=rnd()*Math.PI*2; let lat=pos.lat, lon=pos.lon;
+  const step = 0.0035 + rnd()*0.003;
+  for(let i=0;i<n;i++){
+    pts.push([lat,lon]);
+    ang += (rnd()-0.5)*1.15;
+    lat += Math.cos(ang)*step;
+    lon += Math.sin(ang)*step*1.35;
+  }
+  if(isLoop) pts.push(pts[0]);
+  return pts;
 }
 function trailMapHtml(){
   return '<div id="trailMapWrap" style="height:260px;border-radius:12px;overflow:hidden;position:relative">'+
@@ -2152,10 +2174,15 @@ function wireTrailMap(t){
   if(!el || typeof L==='undefined') return;
   if(trailLeaflet){ try{trailLeaflet.remove();}catch(e){} trailLeaflet=null; }
   const pos=trailApproxLatLon(t);
-  trailLeaflet=L.map(el,{attributionControl:true}).setView([pos.lat,pos.lon], 12);
+  trailLeaflet=L.map(el,{attributionControl:true}).setView([pos.lat,pos.lon], 13);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'&copy; OpenStreetMap'}).addTo(trailLeaflet);
-  L.circle([pos.lat,pos.lon],{radius:2500,color:'#c0b6fb',weight:1,fillColor:'#c0b6fb',fillOpacity:0.12}).addTo(trailLeaflet);
-  L.marker([pos.lat,pos.lon]).addTo(trailLeaflet).bindPopup('<b>'+esc(t.name)+'</b><br>'+esc(t.park));
+  L.circle([pos.lat,pos.lon],{radius:2500,color:'#c0b6fb',weight:1,fillColor:'#c0b6fb',fillOpacity:0.1}).addTo(trailLeaflet);
+  const path = trailIllustrativePath(t);
+  L.polyline(path,{color:'#0d0e16',weight:7,opacity:0.55,lineCap:'round',lineJoin:'round'}).addTo(trailLeaflet);
+  const line = L.polyline(path,{color:'#c0b6fb',weight:4,opacity:1,dashArray:'9 7',lineCap:'round',lineJoin:'round'}).addTo(trailLeaflet);
+  L.marker(path[0]).addTo(trailLeaflet).bindPopup('<b>'+esc(t.name)+'</b><br>'+esc(t.park));
+  L.circleMarker(path[path.length-1],{radius:7,color:'#fff',weight:2,fillColor:'#c0b6fb',fillOpacity:1}).addTo(trailLeaflet);
+  try{ trailLeaflet.fitBounds(line.getBounds(),{padding:[40,40]}); }catch(e){}
 }
 function mUnit(m){ return S.units==='km'?m:m*3.28084; }
 function ratingDistribution(avg){
